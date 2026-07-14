@@ -8,6 +8,7 @@ const LETTERS = ['#', 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O
 export default function Browse() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [page, setPage] = useState(1)
   const [hasNext, setHasNext] = useState(false)
   const [totalPages, setTotalPages] = useState(1)
@@ -22,15 +23,22 @@ export default function Browse() {
 
   const fetchAnime = async (p, letter) => {
     setLoading(true)
+    setError('')
     try {
       const letterParam = letter && letter !== '#' ? `&letter=${letter}` : ''
       const res = await fetch(`${API}/jikan/all?page=${p}${letterParam}`)
       const data = await res.json()
-      setResults(data.results || [])
-      setPage(p)
-      setHasNext(data.has_next || false)
-      setTotalPages(data.total_pages || 1)
+      if (data.error && (!data.results || data.results.length === 0)) {
+        setError(data.error)
+        setResults([])
+      } else {
+        setResults(data.results || [])
+        setPage(p)
+        setHasNext(data.has_next || false)
+        setTotalPages(data.total_pages || 1)
+      }
     } catch {
+      setError('Failed to connect to backend. Make sure the app is fully loaded.')
       setResults([])
     } finally {
       setLoading(false)
@@ -74,7 +82,24 @@ export default function Browse() {
       {loading ? (
         <div className="browse-loading">
           <span className="spinner large" />
-          <p>Loading anime...</p>
+          <p>Loading anime from MyAnimeList...</p>
+          <p style={{fontSize:12, color:'var(--text-muted)'}}>This may take a moment due to API rate limits</p>
+        </div>
+      ) : error ? (
+        <div className="search-empty">
+          <span style={{fontSize:40}}>⏳</span>
+          <p style={{color:'var(--text-muted)'}}>{error}</p>
+          <button className="btn btn-primary" style={{marginTop:16}} onClick={() => fetchAnime(page, activeLetter)}>
+            Try Again
+          </button>
+        </div>
+      ) : results.length === 0 ? (
+        <div className="search-empty">
+          <span style={{fontSize:40}}>🎌</span>
+          <p>No results found. Try a different letter or page.</p>
+          <button className="btn btn-ghost" style={{marginTop:12}} onClick={() => fetchAnime(1, null)}>
+            Show All Anime
+          </button>
         </div>
       ) : (
         <>

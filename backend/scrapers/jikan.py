@@ -1,4 +1,5 @@
 import httpx
+import asyncio
 from fastapi import APIRouter
 
 router = APIRouter()
@@ -7,6 +8,7 @@ router = APIRouter()
 JIKAN = "https://api.jikan.moe/v4"
 
 # Map genre names to MyAnimeList genre IDs
+# Supernatural (37) is a theme, not a genre - use genres + themes param
 GENRE_IDS = {
     "action": 1,
     "adventure": 2,
@@ -32,10 +34,59 @@ GENRE_IDS = {
     "isekai": 62,
 }
 
+# These genres need to use "themes" param in Jikan v4 instead of "genres"
+THEME_IDS = {
+    "supernatural": 37,
+    "school": 23,
+    "music": 19,
+    "isekai": 62,
+}
+
 HEADERS = {
     "User-Agent": "AniVault/1.0 (anime desktop app)",
     "Accept": "application/json",
 }
+
+
+async def jikan_get(url: str, retries: int = 3) -> dict:
+    """Fetch from Jikan with retry on rate limit."""
+    for attempt in range(retries):
+        try:
+            async with httpx.AsyncClient(headers=HEADERS, timeout=20) as client:
+                resp = await client.get(url)
+                if resp.status_code == 429:
+                    # Rate limited — wait and retry
+                    wait = 1.5 * (attempt + 1)
+                    await asyncio.sleep(wait)
+                    continue
+                if resp.status_code != 200:
+                    return {"error": f"API returned {resp.status_code}", "data": []}
+                return resp.json()
+        except Exception as e:
+            if attempt < retries - 1:
+                await asyncio.sleep(1)
+            else:
+                return {"error": str(e), "data": []}
+    return {"error": "Rate limited. Please try again in a moment.", "data": []}
+
+
+def parse_anime(item: dict) -> dict:
+    title_en = item.get("title_english") or item.get("title", "")
+    title_jp = item.get("title", "")
+    return {
+        "title": title_en or title_jp,
+        "title_japanese": title_jp,
+        "url": item.get("url", ""),
+        "thumbnail": item.get("images", {}).get("jpg", {}).get("large_image_url", ""),
+        "sub_episodes": str(item.get("episodes") or "?"),
+        "dub_episodes": "0",
+        "type": item.get("type", "TV"),
+        "score": item.get("score"),
+        "source": "jikan",
+        "mal_id": item.get("mal_id"),
+        "year": item.get("year"),
+        "status": item.get("status"),
+    }
 
 
 @router.get("/by-genre")
@@ -46,31 +97,24 @@ async def get_by_genre(genre: str, page: int = 1):
     if not genre_id:
         return {"results": [], "genre": genre, "error": "Unknown genre"}
 
-    url = f"{JIKAN}/anime?genres={genre_id}&order_by=score&sort=desc&limit=24&page={page}"
-    async with httpx.AsyncClient(headers=HEADERS, timeout=15) as client:
-        resp = await client.get(url)
+    # Supernatural and other themes need the `themes` param
+    if genre_lower in THEME_IDS:
+        url = f"{JIKAN}/anime?genres={genre_id}&order_by=score&sort=desc&limit=24&page={page}&sfw=true"
+        data = await jikan_get(url)
+        if not data.get("data"):
+            # Try with themes param instead
+            url2 = f"{JIKAN}/anime?themes={genre_id}&order_by=score&sort=desc&limit=24&page={page}&sfw=true"
+            data = await jikan_get(url2)
+    else:
+        url = f"{JIKAN}/anime?genres={genre_id}&order_by=score&sort=desc&limit=24&page={page}&sfw=true"
+        data = await jikan_get(url)
 
-    data = resp.json()
-    anime_list = data.get("data", [])
+    if "error" in data and not data.get("data"):
+        return {"results": [], "genre": genre, "error": data["error"]}
 
-    results = []
-    for item in anime_list:
-        title_en = item.get("title_english") or item.get("title", "")
-        title_jp = item.get("title", "")
-        results.append({
-            "title": title_en or title_jp,
-            "title_japanese": title_jp,
-            "url": item.get("url", ""),
-            "thumbnail": item.get("images", {}).get("jpg", {}).get("large_image_url", ""),
-            "sub_episodes": str(item.get("episodes") or "?"),
-            "dub_episodes": "0",
-            "type": item.get("type", "TV"),
-            "score": item.get("score"),
-            "source": "jikan",
-            "mal_id": item.get("mal_id"),
-        })
-
+    results = [parse_anime(item) for item in data.get("data", [])]
     pagination = data.get("pagination", {})
+
     return {
         "results": results,
         "genre": genre,
@@ -81,97 +125,48 @@ async def get_by_genre(genre: str, page: int = 1):
 
 @router.get("/search")
 async def search_jikan(q: str, page: int = 1):
-    url = f"{JIKAN}/anime?q={q}&limit=20&page={page}&order_by=popularity"
-    async with httpx.AsyncClient(headers=HEADERS, timeout=15) as client:
-        resp = await client.get(url)
+    url = f"{JIKAN}/anime?q={q}&limit=20&page={page}&order_by=popularity&sfw=true"
+    data = await jikan_get(url)
 
-    data = resp.json()
-    anime_list = data.get("data", [])
+    if "error" in data and not data.get("data"):
+        return {"results": [], "error": data.get("error")}
 
-    results = []
-    for item in anime_list:
-        title_en = item.get("title_english") or item.get("title", "")
-        title_jp = item.get("title", "")
-        results.append({
-            "title": title_en or title_jp,
-            "title_japanese": title_jp,
-            "url": item.get("url", ""),
-            "thumbnail": item.get("images", {}).get("jpg", {}).get("large_image_url", ""),
-            "sub_episodes": str(item.get("episodes") or "?"),
-            "dub_episodes": "0",
-            "type": item.get("type", "TV"),
-            "score": item.get("score"),
-            "source": "jikan",
-            "mal_id": item.get("mal_id"),
-        })
-
-    return {"results": results, "source": "jikan"}
+    return {"results": [parse_anime(item) for item in data.get("data", [])], "source": "jikan"}
 
 
 @router.get("/airing")
 async def get_airing(limit: int = 20):
-    """Get currently airing anime with recent episode info."""
-    url = f"{JIKAN}/anime?status=airing&order_by=popularity&sort=asc&limit={limit}"
-    async with httpx.AsyncClient(headers=HEADERS, timeout=15) as client:
-        resp = await client.get(url)
-
-    data = resp.json()
-    anime_list = data.get("data", [])
+    """Get currently airing anime."""
+    url = f"{JIKAN}/anime?status=airing&order_by=popularity&sort=asc&limit={limit}&sfw=true"
+    data = await jikan_get(url)
 
     results = []
-    for item in anime_list:
-        title_en = item.get("title_english") or item.get("title", "")
-        title_jp = item.get("title", "")
-        ep = item.get("episodes") or "?"
-        results.append({
-            "title": title_en or title_jp,
-            "title_japanese": title_jp,
-            "thumbnail": item.get("images", {}).get("jpg", {}).get("large_image_url", ""),
-            "ep": ep,
-            "type": item.get("type", "TV"),
-            "score": item.get("score"),
-            "source": "jikan",
-            "mal_id": item.get("mal_id"),
-        })
+    for item in data.get("data", []):
+        r = parse_anime(item)
+        r["ep"] = item.get("episodes") or "?"
+        results.append(r)
 
     return {"results": results}
 
 
 @router.get("/all")
 async def get_all_anime(page: int = 1, letter: str = None):
-    """Get all anime in alphabetical order, optionally filtered by starting letter."""
-    params = f"order_by=title&sort=asc&limit=24&page={page}&type=tv"
-    if letter:
-        params += f"&letter={letter}"
+    """Get all anime in alphabetical order."""
+    # Use top-rated anime by default (more reliable than alphabetical which can be slow)
+    if letter and letter != "#":
+        params = f"order_by=title&sort=asc&limit=24&page={page}&letter={letter}&sfw=true"
+    else:
+        params = f"order_by=popularity&sort=asc&limit=24&page={page}&sfw=true"
 
     url = f"{JIKAN}/anime?{params}"
-    async with httpx.AsyncClient(headers=HEADERS, timeout=15) as client:
-        resp = await client.get(url)
+    data = await jikan_get(url)
 
-    data = resp.json()
-    anime_list = data.get("data", [])
+    if "error" in data and not data.get("data"):
+        return {"results": [], "error": data.get("error"), "page": page, "has_next": False, "total_pages": 1}
+
     pagination = data.get("pagination", {})
-
-    results = []
-    for item in anime_list:
-        title_en = item.get("title_english") or item.get("title", "")
-        title_jp = item.get("title", "")
-        results.append({
-            "title": title_en or title_jp,
-            "title_japanese": title_jp,
-            "thumbnail": item.get("images", {}).get("jpg", {}).get("large_image_url", ""),
-            "sub_episodes": str(item.get("episodes") or "?"),
-            "dub_episodes": "0",
-            "type": item.get("type", "TV"),
-            "score": item.get("score"),
-            "source": "jikan",
-            "mal_id": item.get("mal_id"),
-            "year": item.get("year"),
-            "status": item.get("status"),
-        })
-
     return {
-        "results": results,
+        "results": [parse_anime(item) for item in data.get("data", [])],
         "page": page,
         "has_next": pagination.get("has_next_page", False),
         "total_pages": pagination.get("last_visible_page", 1),
