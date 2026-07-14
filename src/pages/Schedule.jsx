@@ -65,7 +65,7 @@ export default function Schedule() {
             <div key={i} className="schedule-card">
               {show.imageVersionRoute && (
                 <img
-                  src={`https://img.animeschedule.net/production/assets/public/img/${show.imageVersionRoute}`}
+                  src={show.imageVersionRoute.startsWith('http') ? show.imageVersionRoute : `https://img.animeschedule.net/production/assets/public/img/${show.imageVersionRoute}`}
                   alt={show.title}
                   className="schedule-card-img"
                   onError={e => e.target.style.display='none'}

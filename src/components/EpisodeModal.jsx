@@ -57,6 +57,8 @@ export default function EpisodeModal() {
             episode: `Episode ${ep.number}`,
             quality,
             download_id: dlId,
+            thumbnail: episodeModal.thumbnail,
+            source: episodeModal.source,
           }),
         })
       } catch {}

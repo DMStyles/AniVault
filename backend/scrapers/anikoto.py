@@ -1,4 +1,6 @@
 import httpx
+import base64
+import urllib.parse
 from fastapi import APIRouter
 from bs4 import BeautifulSoup
 from typing import Optional
@@ -7,13 +9,35 @@ router = APIRouter()
 
 BASE_URL = "https://anikototv.to"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "X-Requested-With": "XMLHttpRequest"
 }
+
+def rc4(key: str, data: str) -> str:
+    s = list(range(256))
+    j = 0
+    for i in range(256):
+        j = (j + s[i] + ord(key[i % len(key)])) % 256
+        s[i], s[j] = s[j], s[i]
+    
+    i = j = 0
+    out = []
+    for char in data:
+        i = (i + 1) % 256
+        j = (j + s[i]) % 256
+        s[i], s[j] = s[j], s[i]
+        out.append(chr(ord(char) ^ s[(s[i] + s[j]) % 256]))
+    return "".join(out)
+
+def generate_vrf(text: str) -> str:
+    encrypted = rc4("simple-hash", text)
+    return base64.b64encode(encrypted.encode('latin1')).decode('utf-8')
 
 @router.get("/search")
 async def search_anikoto(q: str):
     url = f"{BASE_URL}/filter?keyword={q}"
-    async with httpx.AsyncClient(headers=HEADERS, timeout=15) as client:
+    headers = {"User-Agent": HEADERS["User-Agent"]}
+    async with httpx.AsyncClient(headers=headers, timeout=15) as client:
         resp = await client.get(url)
     soup = BeautifulSoup(resp.text, "html.parser")
     results = []
@@ -39,22 +63,49 @@ async def search_anikoto(q: str):
 
 @router.get("/episodes")
 async def get_episodes(url: str):
-    async with httpx.AsyncClient(headers=HEADERS, timeout=15) as client:
+    headers = {"User-Agent": HEADERS["User-Agent"]}
+    async with httpx.AsyncClient(headers=headers, timeout=15) as client:
         resp = await client.get(url)
     soup = BeautifulSoup(resp.text, "html.parser")
-    episodes = []
+    
     title_el = soup.select_one(".anisc-detail .film-name")
     title = title_el.get_text(strip=True) if title_el else "Unknown"
     thumb_el = soup.select_one(".film-poster img")
     thumbnail = thumb_el.get("src", "") if thumb_el else ""
-    ep_list = soup.select("#episodes-content .ep-item")
-    for ep in ep_list:
-        ep_num = ep.get("data-number", "?")
-        ep_title = ep.get("title", f"Episode {ep_num}")
-        ep_href = ep.get("href", "")
-        episodes.append({
-            "number": ep_num,
-            "title": ep_title,
-            "url": BASE_URL + ep_href if ep_href.startswith("/") else ep_href,
-        })
+    
+    watch_main = soup.select_one("#watch-main, [data-id]")
+    if not watch_main:
+        return {"title": title, "thumbnail": thumbnail, "episodes": [], "source": "anikoto"}
+        
+    show_id = watch_main.get("data-id")
+    if not show_id:
+        return {"title": title, "thumbnail": thumbnail, "episodes": [], "source": "anikoto"}
+        
+    vrf = generate_vrf(show_id)
+    ajax_url = f"{BASE_URL}/ajax/episode/list/{show_id}?vrf={urllib.parse.quote(vrf)}"
+    
+    ajax_headers = {
+        "User-Agent": HEADERS["User-Agent"],
+        "Referer": url,
+        "X-Requested-With": "XMLHttpRequest"
+    }
+    
+    async with httpx.AsyncClient(headers=ajax_headers, timeout=15) as client:
+        ajax_resp = await client.get(ajax_url)
+    
+    episodes = []
+    if ajax_resp.status_code == 200:
+        ajax_data = ajax_resp.json()
+        ajax_html = ajax_data.get("result", "")
+        ajax_soup = BeautifulSoup(ajax_html, "html.parser")
+        
+        for ep in ajax_soup.select("a[data-ids]"):
+            ep_num = ep.get("data-num", "?")
+            data_ids = ep.get("data-ids", "")
+            episodes.append({
+                "number": ep_num,
+                "title": f"Episode {ep_num}",
+                "url": f"anikoto:{data_ids}",
+            })
+            
     return {"title": title, "thumbnail": thumbnail, "episodes": episodes, "source": "anikoto"}
