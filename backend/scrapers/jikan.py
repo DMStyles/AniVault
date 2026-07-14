@@ -436,3 +436,82 @@ async def get_details(id: Optional[int] = None, title: Optional[str] = None):
         "recommendations": recommendations,
     }
 
+
+@router.get("/watch-order")
+async def get_watch_order(id: int):
+    """Retrieve chronologically/release ordered watch path for a franchise."""
+    visited = set()
+    queue = [id]
+    franchise = []
+
+    # Limit to maximum 6 queries to avoid hitting rate limits
+    max_queries = 6
+    queries_made = 0
+
+    while queue and queries_made < max_queries:
+        current_id = queue.pop(0)
+        if current_id in visited:
+            continue
+        visited.add(current_id)
+
+        query = """
+        query ($id: Int) {
+          Media(id: $id, type: ANIME) {
+            id
+            title { english romaji }
+            coverImage { large }
+            format
+            seasonYear
+            startDate { year month }
+            status
+            relations {
+              edges {
+                relationType
+                node {
+                  id
+                  type
+                }
+              }
+            }
+          }
+        }
+        """
+        res = await anilist_post(query, {"id": current_id})
+        queries_made += 1
+
+        media = (res.get("data") or {}).get("Media")
+        if not media:
+            continue
+
+        title_en = (media.get("title") or {}).get("english") or (media.get("title") or {}).get("romaji", "")
+        year = media.get("seasonYear") or (media.get("startDate") or {}).get("year")
+
+        franchise.append({
+            "id": media.get("id"),
+            "title": title_en,
+            "cover": (media.get("coverImage") or {}).get("large") or "",
+            "year": year,
+            "format": (media.get("format") or "TV").replace("_", " "),
+            "status": media.get("status"),
+        })
+
+        edges = (media.get("relations") or {}).get("edges") or []
+        for edge in edges:
+            node = edge.get("node")
+            rel_type = edge.get("relationType", "")
+            if node and node.get("type") == "ANIME":
+                rel_id = node.get("id")
+                if rel_id not in visited and rel_id not in queue:
+                    # Follow main prequel/sequel relations
+                    if rel_type in ["PREQUEL", "SEQUEL"]:
+                        queue.append(rel_id)
+
+    # Sort by year
+    franchise.sort(key=lambda x: x.get("year") or 9999)
+
+    # Format the index/order
+    for idx, item in enumerate(franchise):
+        item["order"] = idx + 1
+
+    return {"watch_order": franchise}
+

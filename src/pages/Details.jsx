@@ -20,6 +20,7 @@ export default function Details() {
   const [anime, setAnime] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [watchOrder, setWatchOrder] = useState(null)
 
   // Scraper Source States
   const [activeSource, setActiveSource] = useState(SOURCES[0].id)
@@ -40,6 +41,16 @@ export default function Details() {
     fetchAnimeDetails()
   }, [id, location.state])
 
+  const fetchWatchOrder = async (animeId) => {
+    try {
+      const res = await fetch(`${API}/jikan/watch-order?id=${animeId}`)
+      const data = await res.json()
+      setWatchOrder(data.watch_order || null)
+    } catch {
+      setWatchOrder(null)
+    }
+  }
+
   const fetchAnimeDetails = async () => {
     setLoading(true)
     setError('')
@@ -48,6 +59,7 @@ export default function Details() {
     setEpisodes([])
     setSearchResults([])
     setSelectedEpisodes(new Set())
+    setWatchOrder(null)
 
     try {
       const searchTitle = location.state?.searchQuery
@@ -64,6 +76,9 @@ export default function Details() {
         setAnime(data)
         // Immediately start searching sources for matching title
         searchSourceScraper(data.title, activeSource)
+        if (data.id) {
+          fetchWatchOrder(data.id)
+        }
       }
     } catch {
       setError('Failed to fetch anime details')
@@ -251,6 +266,27 @@ export default function Details() {
               ))}
             </div>
           </div>
+
+          {/* Franchise Watch Order */}
+          {watchOrder && watchOrder.length > 1 && (
+            <div className="details-relations-card">
+              <h3>🌸 Franchise Watch Order</h3>
+              <div className="relations-list">
+                {watchOrder.map(item => (
+                  <button 
+                    key={item.id} 
+                    className={`relation-item-btn${item.id === anime.id ? ' active' : ''}`}
+                    style={item.id === anime.id ? { borderColor: 'var(--accent)', background: 'var(--accent-glow)' } : {}}
+                    onClick={() => navigate(`/anime/${item.id}`, { state: { cacheBuster: Date.now() } })}
+                  >
+                    <span className="relation-type" style={{ color: 'var(--accent-light)' }}>#{item.order}</span>
+                    <span className="relation-title">{item.title}</span>
+                    <span className="relation-status">{item.year} · {item.format}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Related Seasons / Prequels / Sequels */}
           {anime.relations && anime.relations.length > 0 && (
