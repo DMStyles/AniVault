@@ -279,9 +279,11 @@ export default function Details() {
                     style={item.id === anime.id ? { borderColor: 'var(--accent)', background: 'var(--accent-glow)' } : {}}
                     onClick={() => navigate(`/anime/${item.id}`, { state: { cacheBuster: Date.now() } })}
                   >
-                    <span className="relation-type" style={{ color: 'var(--accent-light)' }}>#{item.order}</span>
-                    <span className="relation-title">{item.title}</span>
-                    <span className="relation-status">{item.year} · {item.format}</span>
+                    <div style={{display:'flex', alignItems:'flex-start', gap:10, flex:1, marginRight:12}}>
+                      <span className="relation-type" style={{ color: 'var(--accent-light)', minWidth: 40, marginTop: 1 }}>#{item.order}</span>
+                      <span style={{ fontSize:12, fontWeight:600, color:'var(--text-primary)', wordBreak:'break-word' }}>{item.title}</span>
+                    </div>
+                    <span className="relation-status" style={{flexShrink:0}}>{item.year} · {item.format}</span>
                   </button>
                 ))}
               </div>
@@ -299,9 +301,11 @@ export default function Details() {
                     className="relation-item-btn"
                     onClick={() => navigate(`/anime/${rel.id}`, { state: { cacheBuster: Date.now() } })}
                   >
-                    <span className="relation-type">{rel.relation}</span>
-                    <span className="relation-title">{rel.title}</span>
-                    <span className="relation-status">{rel.status}</span>
+                    <div style={{display:'flex', alignItems:'flex-start', gap:10, flex:1, marginRight:12}}>
+                      <span className="relation-type" style={{ minWidth: 80, marginTop: 1 }}>{rel.relation}</span>
+                      <span style={{ fontSize:12, fontWeight:600, color:'var(--text-primary)', wordBreak:'break-word' }}>{rel.title}</span>
+                    </div>
+                    <span className="relation-status" style={{flexShrink:0}}>{rel.status}</span>
                   </button>
                 ))}
               </div>

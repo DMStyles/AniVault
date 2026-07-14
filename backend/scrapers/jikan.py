@@ -367,6 +367,30 @@ async def get_details(id: Optional[int] = None, title: Optional[str] = None):
     errors = result.get("errors")
     media = (result.get("data") or {}).get("Media")
 
+    # Fallback if title search failed (e.g. strict matching error / Not Found)
+    if (errors or not media) and title:
+        import re
+        # Clean title: Remove brackets/parentheses and common suffixes like - Movie, - Prologue, Dub, Sub
+        cleaned = re.sub(r"\[.*?\]|\(.*?\)", "", title)
+        cleaned = re.sub(r"\s-\s(Prologue|Movie|Special|Specials|OVA|ONA|Dub|Sub|Part\s*\d+|Season\s*\d+.*)$", "", cleaned, flags=re.IGNORECASE)
+        cleaned = " ".join(cleaned.split())
+        
+        if cleaned != title:
+            result = await anilist_post(query, {"search": cleaned})
+            errors = result.get("errors")
+            media = (result.get("data") or {}).get("Media")
+            
+        # Second fallback: take first 3 words to query the franchise
+        if errors or not media:
+            words = title.split()
+            if len(words) > 3:
+                short_title = " ".join(words[:3])
+                # Remove trailing colons/commas
+                short_title = re.sub(r"[:,.-]$", "", short_title).strip()
+                result = await anilist_post(query, {"search": short_title})
+                errors = result.get("errors")
+                media = (result.get("data") or {}).get("Media")
+
     if errors and not media:
         return {"error": errors[0].get("message", "Unknown error")}
 
