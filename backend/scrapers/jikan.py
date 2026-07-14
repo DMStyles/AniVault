@@ -4,146 +4,157 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-# Jikan v4 - free MyAnimeList API, no auth needed
-JIKAN = "https://api.jikan.moe/v4"
-
-# Map genre names to MyAnimeList genre IDs
-# Supernatural (37) is a theme, not a genre - use genres + themes param
-GENRE_IDS = {
-    "action": 1,
-    "adventure": 2,
-    "comedy": 4,
-    "drama": 8,
-    "ecchi": 9,
-    "fantasy": 10,
-    "mystery": 7,
-    "psychological": 40,
-    "romance": 22,
-    "sci-fi": 24,
-    "slice of life": 36,
-    "supernatural": 37,
-    "thriller": 41,
-    "horror": 14,
-    "sports": 30,
-    "mecha": 18,
-    "music": 19,
-    "school": 23,
-    "shounen": 27,
-    "shoujo": 25,
-    "seinen": 42,
-    "isekai": 62,
-}
-
-# These genres need to use "themes" param in Jikan v4 instead of "genres"
-THEME_IDS = {
-    "supernatural": 37,
-    "school": 23,
-    "music": 19,
-    "isekai": 62,
-}
-
+# AniList GraphQL API - CDN-backed, fast, free, no auth needed
+ANILIST = "https://graphql.anilist.co"
 HEADERS = {
-    "User-Agent": "AniVault/1.0 (anime desktop app)",
+    "Content-Type": "application/json",
     "Accept": "application/json",
 }
 
+# AniList uses genre names directly as strings
+GENRE_MAP = {
+    "action": "Action",
+    "adventure": "Adventure",
+    "comedy": "Comedy",
+    "drama": "Drama",
+    "ecchi": "Ecchi",
+    "fantasy": "Fantasy",
+    "mystery": "Mystery",
+    "psychological": "Psychological",
+    "romance": "Romance",
+    "sci-fi": "Sci-Fi",
+    "slice of life": "Slice of Life",
+    "supernatural": "Supernatural",
+    "thriller": "Thriller",
+    "horror": "Horror",
+    "sports": "Sports",
+    "mecha": "Mecha",
+    "music": "Music",
+    "school": "School",
+    "shounen": "Action",  # AniList uses demographics differently; map to closest
+    "shoujo": "Romance",
+    "seinen": "Seinen",
+    "isekai": "Adventure",
+}
 
-async def jikan_get(url: str, retries: int = 3) -> dict:
-    """Fetch from Jikan with retry on rate limit."""
-    for attempt in range(retries):
-        try:
-            async with httpx.AsyncClient(headers=HEADERS, timeout=20) as client:
-                resp = await client.get(url)
-                if resp.status_code == 429:
-                    # Rate limited — wait and retry
-                    wait = 1.5 * (attempt + 1)
-                    await asyncio.sleep(wait)
-                    continue
-                if resp.status_code != 200:
-                    return {"error": f"API returned {resp.status_code}", "data": []}
-                return resp.json()
-        except Exception as e:
-            if attempt < retries - 1:
-                await asyncio.sleep(1)
-            else:
-                return {"error": str(e), "data": []}
-    return {"error": "Rate limited. Please try again in a moment.", "data": []}
+MEDIA_FRAGMENT = """
+  id
+  title { english romaji }
+  coverImage { large extraLarge }
+  episodes
+  format
+  averageScore
+  status
+  startDate { year }
+"""
 
 
-def parse_anime(item: dict) -> dict:
-    title_en = item.get("title_english") or item.get("title", "")
-    title_jp = item.get("title", "")
+async def anilist_post(query: str, variables: dict = None) -> dict:
+    payload = {"query": query, "variables": variables or {}}
+    try:
+        async with httpx.AsyncClient(headers=HEADERS, timeout=20) as client:
+            resp = await client.post(ANILIST, json=payload)
+            if resp.status_code != 200:
+                return {"errors": [{"message": f"HTTP {resp.status_code}"}], "data": None}
+            return resp.json()
+    except Exception as e:
+        return {"errors": [{"message": str(e)}], "data": None}
+
+
+def parse_media(item: dict) -> dict:
+    title_en = (item.get("title") or {}).get("english") or (item.get("title") or {}).get("romaji", "")
+    title_jp = (item.get("title") or {}).get("romaji", "")
+    score = item.get("averageScore")
+    if score:
+        score = round(score / 10, 1)
+    img = (item.get("coverImage") or {})
+    thumbnail = img.get("extraLarge") or img.get("large", "")
     return {
         "title": title_en or title_jp,
         "title_japanese": title_jp,
-        "url": item.get("url", ""),
-        "thumbnail": item.get("images", {}).get("jpg", {}).get("large_image_url", ""),
+        "thumbnail": thumbnail,
         "sub_episodes": str(item.get("episodes") or "?"),
         "dub_episodes": "0",
-        "type": item.get("type", "TV"),
-        "score": item.get("score"),
+        "type": (item.get("format") or "TV").replace("_", " "),
+        "score": score,
         "source": "jikan",
-        "mal_id": item.get("mal_id"),
-        "year": item.get("year"),
+        "mal_id": item.get("id"),
+        "year": (item.get("startDate") or {}).get("year"),
         "status": item.get("status"),
+        "ep": item.get("episodes") or "?",
     }
 
 
 @router.get("/by-genre")
 async def get_by_genre(genre: str, page: int = 1):
     genre_lower = genre.lower()
-    genre_id = GENRE_IDS.get(genre_lower)
+    genre_name = GENRE_MAP.get(genre_lower, genre.title())
 
-    if not genre_id:
-        return {"results": [], "genre": genre, "error": "Unknown genre"}
+    query = """
+    query ($genre: String, $page: Int) {
+      Page(page: $page, perPage: 24) {
+        pageInfo { hasNextPage currentPage lastPage }
+        media(type: ANIME, genre: $genre, sort: SCORE_DESC, isAdult: false) {
+          """ + MEDIA_FRAGMENT + """
+        }
+      }
+    }
+    """
+    result = await anilist_post(query, {"genre": genre_name, "page": page})
+    errors = result.get("errors")
+    page_data = (result.get("data") or {}).get("Page") or {}
+    anime_list = page_data.get("media") or []
+    page_info = page_data.get("pageInfo") or {}
 
-    # Supernatural and other themes need the `themes` param
-    if genre_lower in THEME_IDS:
-        url = f"{JIKAN}/anime?genres={genre_id}&order_by=score&sort=desc&limit=24&page={page}&sfw=true"
-        data = await jikan_get(url)
-        if not data.get("data"):
-            # Try with themes param instead
-            url2 = f"{JIKAN}/anime?themes={genre_id}&order_by=score&sort=desc&limit=24&page={page}&sfw=true"
-            data = await jikan_get(url2)
-    else:
-        url = f"{JIKAN}/anime?genres={genre_id}&order_by=score&sort=desc&limit=24&page={page}&sfw=true"
-        data = await jikan_get(url)
-
-    if "error" in data and not data.get("data"):
-        return {"results": [], "genre": genre, "error": data["error"]}
-
-    results = [parse_anime(item) for item in data.get("data", [])]
-    pagination = data.get("pagination", {})
+    if errors and not anime_list:
+        return {"results": [], "genre": genre, "error": errors[0].get("message", "Unknown error")}
 
     return {
-        "results": results,
+        "results": [parse_media(a) for a in anime_list],
         "genre": genre,
         "page": page,
-        "has_next": pagination.get("has_next_page", False),
+        "has_next": page_info.get("hasNextPage", False),
     }
 
 
 @router.get("/search")
 async def search_jikan(q: str, page: int = 1):
-    url = f"{JIKAN}/anime?q={q}&limit=20&page={page}&order_by=popularity&sfw=true"
-    data = await jikan_get(url)
-
-    if "error" in data and not data.get("data"):
-        return {"results": [], "error": data.get("error")}
-
-    return {"results": [parse_anime(item) for item in data.get("data", [])], "source": "jikan"}
+    query = """
+    query ($search: String, $page: Int) {
+      Page(page: $page, perPage: 20) {
+        media(type: ANIME, search: $search, sort: POPULARITY_DESC, isAdult: false) {
+          """ + MEDIA_FRAGMENT + """
+        }
+      }
+    }
+    """
+    result = await anilist_post(query, {"search": q, "page": page})
+    anime_list = ((result.get("data") or {}).get("Page") or {}).get("media") or []
+    return {"results": [parse_media(a) for a in anime_list], "source": "jikan"}
 
 
 @router.get("/airing")
 async def get_airing(limit: int = 20):
-    """Get currently airing anime."""
-    url = f"{JIKAN}/anime?status=airing&order_by=popularity&sort=asc&limit={limit}&sfw=true"
-    data = await jikan_get(url)
+    query = """
+    query ($perPage: Int) {
+      Page(perPage: $perPage) {
+        media(type: ANIME, status: RELEASING, sort: POPULARITY_DESC, isAdult: false) {
+          """ + MEDIA_FRAGMENT + """
+          nextAiringEpisode { episode }
+        }
+      }
+    }
+    """
+    result = await anilist_post(query, {"perPage": limit})
+    anime_list = ((result.get("data") or {}).get("Page") or {}).get("media") or []
 
     results = []
-    for item in data.get("data", []):
-        r = parse_anime(item)
-        r["ep"] = item.get("episodes") or "?"
+    for item in anime_list:
+        r = parse_media(item)
+        # Use next airing episode number if available
+        nae = item.get("nextAiringEpisode")
+        if nae and nae.get("episode"):
+            r["ep"] = nae["episode"] - 1 if nae["episode"] > 1 else nae["episode"]
         results.append(r)
 
     return {"results": results}
@@ -151,24 +162,52 @@ async def get_airing(limit: int = 20):
 
 @router.get("/all")
 async def get_all_anime(page: int = 1, letter: str = None):
-    """Get all anime in alphabetical order."""
-    # Use top-rated anime by default (more reliable than alphabetical which can be slow)
     if letter and letter != "#":
-        params = f"order_by=title&sort=asc&limit=24&page={page}&letter={letter}&sfw=true"
+        # Search by letter prefix
+        query = """
+        query ($search: String, $page: Int) {
+          Page(page: $page, perPage: 24) {
+            pageInfo { hasNextPage currentPage lastPage }
+            media(type: ANIME, search: $search, sort: TITLE_ENGLISH_DESC, isAdult: false) {
+              """ + MEDIA_FRAGMENT + """
+            }
+          }
+        }
+        """
+        variables = {"search": letter, "page": page}
     else:
-        params = f"order_by=popularity&sort=asc&limit=24&page={page}&sfw=true"
+        # Default: popular anime
+        query = """
+        query ($page: Int) {
+          Page(page: $page, perPage: 24) {
+            pageInfo { hasNextPage currentPage lastPage }
+            media(type: ANIME, sort: POPULARITY_DESC, isAdult: false) {
+              """ + MEDIA_FRAGMENT + """
+            }
+          }
+        }
+        """
+        variables = {"page": page}
 
-    url = f"{JIKAN}/anime?{params}"
-    data = await jikan_get(url)
+    result = await anilist_post(query, variables)
+    errors = result.get("errors")
+    page_data = ((result.get("data") or {}).get("Page")) or {}
+    anime_list = page_data.get("media") or []
+    page_info = page_data.get("pageInfo") or {}
 
-    if "error" in data and not data.get("data"):
-        return {"results": [], "error": data.get("error"), "page": page, "has_next": False, "total_pages": 1}
+    if errors and not anime_list:
+        return {
+            "results": [],
+            "error": errors[0].get("message", "Unknown error"),
+            "page": page,
+            "has_next": False,
+            "total_pages": 1,
+        }
 
-    pagination = data.get("pagination", {})
     return {
-        "results": [parse_anime(item) for item in data.get("data", [])],
+        "results": [parse_media(a) for a in anime_list],
         "page": page,
-        "has_next": pagination.get("has_next_page", False),
-        "total_pages": pagination.get("last_visible_page", 1),
+        "has_next": page_info.get("hasNextPage", False),
+        "total_pages": page_info.get("lastPage", 1),
         "letter": letter,
     }
