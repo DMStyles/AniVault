@@ -44,12 +44,19 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    // Show immediately in dev
     mainWindow.once('ready-to-show', () => mainWindow.show());
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     mainWindow.once('ready-to-show', () => mainWindow.show());
   }
+
+  // Intercept all popup windows (used to block iframe ads)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.includes('github.com')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
 
   mainWindow.on('closed', () => { mainWindow = null; });
 }
