@@ -23,9 +23,42 @@ export default function Schedule() {
       const res = await fetch(`${API}/schedule/timetables?weeksAfter=${week}`)
       const data = await res.json()
       setSchedule(data)
+      setLoading(false)
+
+      // After rendering, resolve any missing English titles in background
+      const uncached = []
+      Object.values(data).forEach(dayShows => {
+        dayShows.forEach(show => {
+          if (!show.titleEnglish && show.title) {
+            uncached.push(show.title)
+          }
+        })
+      })
+
+      if (uncached.length > 0) {
+        try {
+          const unique = [...new Set(uncached)]
+          const res2 = await fetch(`${API}/schedule/translate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(unique)
+          })
+          const translations = await res2.json()
+          // Patch existing schedule state with resolved translations
+          setSchedule(prev => {
+            const updated = {}
+            Object.entries(prev).forEach(([day, shows]) => {
+              updated[day] = shows.map(show => ({
+                ...show,
+                titleEnglish: show.titleEnglish || translations[show.title] || show.title
+              }))
+            })
+            return updated
+          })
+        } catch {}
+      }
     } catch {
       setError('Could not load schedule. Check your connection.')
-    } finally {
       setLoading(false)
     }
   }
