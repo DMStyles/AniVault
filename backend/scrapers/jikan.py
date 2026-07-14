@@ -106,3 +106,74 @@ async def search_jikan(q: str, page: int = 1):
         })
 
     return {"results": results, "source": "jikan"}
+
+
+@router.get("/airing")
+async def get_airing(limit: int = 20):
+    """Get currently airing anime with recent episode info."""
+    url = f"{JIKAN}/anime?status=airing&order_by=popularity&sort=asc&limit={limit}"
+    async with httpx.AsyncClient(headers=HEADERS, timeout=15) as client:
+        resp = await client.get(url)
+
+    data = resp.json()
+    anime_list = data.get("data", [])
+
+    results = []
+    for item in anime_list:
+        title_en = item.get("title_english") or item.get("title", "")
+        title_jp = item.get("title", "")
+        ep = item.get("episodes") or "?"
+        results.append({
+            "title": title_en or title_jp,
+            "title_japanese": title_jp,
+            "thumbnail": item.get("images", {}).get("jpg", {}).get("large_image_url", ""),
+            "ep": ep,
+            "type": item.get("type", "TV"),
+            "score": item.get("score"),
+            "source": "jikan",
+            "mal_id": item.get("mal_id"),
+        })
+
+    return {"results": results}
+
+
+@router.get("/all")
+async def get_all_anime(page: int = 1, letter: str = None):
+    """Get all anime in alphabetical order, optionally filtered by starting letter."""
+    params = f"order_by=title&sort=asc&limit=24&page={page}&type=tv"
+    if letter:
+        params += f"&letter={letter}"
+
+    url = f"{JIKAN}/anime?{params}"
+    async with httpx.AsyncClient(headers=HEADERS, timeout=15) as client:
+        resp = await client.get(url)
+
+    data = resp.json()
+    anime_list = data.get("data", [])
+    pagination = data.get("pagination", {})
+
+    results = []
+    for item in anime_list:
+        title_en = item.get("title_english") or item.get("title", "")
+        title_jp = item.get("title", "")
+        results.append({
+            "title": title_en or title_jp,
+            "title_japanese": title_jp,
+            "thumbnail": item.get("images", {}).get("jpg", {}).get("large_image_url", ""),
+            "sub_episodes": str(item.get("episodes") or "?"),
+            "dub_episodes": "0",
+            "type": item.get("type", "TV"),
+            "score": item.get("score"),
+            "source": "jikan",
+            "mal_id": item.get("mal_id"),
+            "year": item.get("year"),
+            "status": item.get("status"),
+        })
+
+    return {
+        "results": results,
+        "page": page,
+        "has_next": pagination.get("has_next_page", False),
+        "total_pages": pagination.get("last_visible_page", 1),
+        "letter": letter,
+    }
