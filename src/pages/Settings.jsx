@@ -1,5 +1,6 @@
 import React, { useState, useContext } from 'react'
 import { AppContext } from '../App'
+import pkg from '../../package.json'
 
 export default function Settings() {
   const { settings, saveSettings } = useContext(AppContext)
@@ -108,7 +109,7 @@ export default function Settings() {
           <div className="settings-row">
             <div>
               <label className="settings-label">App Version</label>
-              <p className="settings-desc">AniVault v1.0.0 — Auto-updates via GitHub Releases</p>
+              <p className="settings-desc">AniVault v{pkg.version} — Auto-updates via GitHub Releases</p>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               {updateStatus && <span style={{fontSize:12,color:'var(--success)'}}>{updateStatus}</span>}
