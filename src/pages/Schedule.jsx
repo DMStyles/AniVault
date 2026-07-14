@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../App'
 
 const API = 'http://localhost:8642'
@@ -6,6 +7,7 @@ const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sun
 
 export default function Schedule() {
   const { settings } = useContext(AppContext)
+  const navigate = useNavigate()
   const [schedule, setSchedule] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -97,7 +99,15 @@ export default function Schedule() {
       ) : (
         <div className="schedule-grid">
           {todayShows.map((show, i) => (
-            <div key={i} className="schedule-card">
+            <div 
+              key={i} 
+              className="schedule-card"
+              style={{ cursor: 'pointer' }}
+              onClick={() => {
+                const targetTitle = show.titleEnglish || show.title
+                navigate('/anime/0', { state: { searchQuery: targetTitle } })
+              }}
+            >
               {show.imageVersionRoute && (
                 <img
                   src={show.imageVersionRoute.startsWith('http') ? show.imageVersionRoute : `https://img.animeschedule.net/production/assets/public/img/${show.imageVersionRoute}`}

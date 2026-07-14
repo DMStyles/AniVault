@@ -7,7 +7,6 @@ import Search from './pages/Search'
 import Downloads from './pages/Downloads'
 import Schedule from './pages/Schedule'
 import Library from './pages/Library'
-import Browse from './pages/Browse'
 import Details from './pages/Details'
 import Settings from './pages/Settings'
 import EpisodeModal from './components/EpisodeModal'
@@ -73,7 +72,6 @@ export default function App() {
               <Route path="/" element={<Navigate to="/home" replace />} />
               <Route path="/home" element={<Home />} />
               <Route path="/search" element={<Search />} />
-              <Route path="/browse" element={<Browse />} />
               <Route path="/anime/:id" element={<Details />} />
               <Route path="/downloads" element={<Downloads />} />
               <Route path="/schedule" element={<Schedule />} />
