@@ -55,6 +55,16 @@ function createWindow() {
 }
 
 function startBackend() {
+  const { execSync } = require('child_process');
+  if (process.platform === 'win32') {
+    try {
+      execSync('taskkill /F /IM anivault-backend.exe');
+      console.log('[Backend] Terminated pre-existing backend process instances.');
+    } catch (e) {
+      // Ignored if process was not running
+    }
+  }
+
   let backendCmd, backendArgs;
 
   if (isDev) {
