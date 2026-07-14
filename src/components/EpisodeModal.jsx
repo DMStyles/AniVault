@@ -4,13 +4,14 @@ import { AppContext } from '../App'
 const API = 'http://localhost:8642'
 
 export default function EpisodeModal() {
-  const { episodeModal, setEpisodeModal, setDownloads, settings } = useContext(AppContext)
+  const { episodeModal, setEpisodeModal, setDownloads, settings, setPlayerModal } = useContext(AppContext)
   const [episodes, setEpisodes] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(new Set())
   const [quality, setQuality] = useState(settings.quality || 'best')
   const [subDub, setSubDub] = useState(settings.subDub || 'sub')
   const [queuing, setQueuing] = useState(false)
+  const [watching, setWatching] = useState(false)
 
   const [follows, setFollows] = useState([])
   const [isFollowed, setIsFollowed] = useState(false)
@@ -97,6 +98,29 @@ export default function EpisodeModal() {
     setEpisodeModal(null)
   }
 
+  const handleWatch = async () => {
+    if (selected.size !== 1) return
+    const epNum = Array.from(selected)[0]
+    const ep = episodes.find(e => e.number === epNum)
+    if (!ep) return
+    
+    setWatching(true)
+    try {
+      let finalUrl = ep.url
+      if (finalUrl.startsWith('anikoto:')) {
+        const dataIds = finalUrl.split('anikoto:')[1]
+        const res = await fetch(`${API}/anikoto/resolve?data_ids=${encodeURIComponent(dataIds)}`)
+        const data = await res.json()
+        if (data.url) finalUrl = data.url
+      }
+      setPlayerModal({ title: `${episodeModal.title} - Episode ${ep.number}`, url: finalUrl })
+      setEpisodeModal(null)
+    } catch {}
+    setWatching(false)
+  }
+
+  const isAnikoto = episodeModal.source === 'anikoto'
+
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setEpisodeModal(null)}>
       <div className="modal-panel">
@@ -170,11 +194,20 @@ export default function EpisodeModal() {
         </div>
 
         <div className="modal-footer">
+          {isAnikoto && <span style={{fontSize:12, color:'var(--text-muted)', marginRight:'auto'}}>Downloads are currently disabled for Anikoto streams (protection). Please use Watch.</span>}
           <button className="btn btn-ghost" onClick={() => setEpisodeModal(null)}>Cancel</button>
+          <button
+            className="btn btn-secondary"
+            onClick={handleWatch}
+            disabled={selected.size !== 1 || queuing || watching}
+          >
+            {watching ? <span className="spinner" /> : '▶ Watch'}
+          </button>
           <button
             className="btn btn-primary"
             onClick={startDownloads}
-            disabled={selected.size === 0 || queuing}
+            disabled={selected.size === 0 || queuing || isAnikoto}
+            title={isAnikoto ? "Downloads are disabled for this source" : ""}
           >
             {queuing ? <span className="spinner" /> : `Download ${selected.size > 0 ? selected.size + ' Episode' + (selected.size > 1 ? 's' : '') : ''}`}
           </button>

@@ -18,13 +18,11 @@ export default function PlayerModal() {
           <span style={{fontWeight:700,fontSize:14}}>{playerModal.title}</span>
           <button className="modal-close" onClick={() => setPlayerModal(null)}>✕</button>
         </div>
-        <video
-          ref={videoRef}
+        <iframe
           src={playerModal.url}
-          controls
-          autoPlay
+          allowFullScreen
           className="player-video"
-          style={{width:'100%',height:'calc(100% - 48px)',background:'#000',outline:'none'}}
+          style={{width:'100%',height:'calc(100% - 48px)',background:'#000',border:'none',outline:'none'}}
         />
       </div>
     </div>

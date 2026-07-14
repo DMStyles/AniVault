@@ -33,31 +33,6 @@ def get_format_selector(quality: str) -> str:
     }
     return quality_map.get(quality, quality_map["best"])
 
-def resolve_anikoto_url(data_ids: str) -> str:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "X-Requested-With": "XMLHttpRequest"
-    }
-    server_list_url = f"https://anikototv.to/ajax/server/list?servers={data_ids}"
-    resp = httpx.get(server_list_url, headers=headers, timeout=15)
-    if resp.status_code != 200:
-        raise Exception(f"Failed to fetch server list: status {resp.status_code}")
-    data = resp.json()
-    html = data.get("result", "")
-    soup = BeautifulSoup(html, "html.parser")
-    li = soup.select_one(".servers li[data-link-id]")
-    if not li:
-        raise Exception("No streaming servers found for this episode.")
-    link_id = li.get("data-link-id")
-    source_url = f"https://anikototv.to/ajax/server?get={link_id}"
-    resp_source = httpx.get(source_url, headers=headers, timeout=15)
-    if resp_source.status_code != 200:
-        raise Exception(f"Failed to fetch streaming source: status {resp_source.status_code}")
-    source_data = resp_source.json()
-    final_url = source_data.get("result", {}).get("url")
-    if not final_url:
-        raise Exception("Failed to extract final streaming URL.")
-    return final_url
 
 @router.post("/start")
 async def start_download(req: DownloadRequest):
@@ -103,14 +78,10 @@ async def start_download(req: DownloadRequest):
     def run_download():
         target_url = req.url
         if target_url.startswith("anikoto:"):
-            try:
-                data_ids = target_url.split("anikoto:")[1]
-                target_url = resolve_anikoto_url(data_ids)
-            except Exception as e:
-                if req.download_id in active_downloads:
-                    active_downloads[req.download_id]["status"] = "error"
-                    active_downloads[req.download_id]["error"] = f"Failed to resolve URL: {str(e)}"
-                return
+            if req.download_id in active_downloads:
+                active_downloads[req.download_id]["status"] = "error"
+                active_downloads[req.download_id]["error"] = "Anikoto streams are protected and cannot be downloaded directly. Please use the Watch feature."
+            return
 
         ydl_opts = {
             "format": get_format_selector(req.quality),

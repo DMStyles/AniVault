@@ -109,3 +109,37 @@ async def get_episodes(url: str):
             })
             
     return {"title": title, "thumbnail": thumbnail, "episodes": episodes, "source": "anikoto"}
+
+@router.get("/resolve")
+async def resolve_stream(data_ids: str):
+    server_list_url = f"{BASE_URL}/ajax/server/list?servers={data_ids}"
+    headers = {"User-Agent": HEADERS["User-Agent"], "X-Requested-With": "XMLHttpRequest"}
+    
+    async with httpx.AsyncClient(headers=headers, timeout=15) as client:
+        resp = await client.get(server_list_url)
+    
+    if resp.status_code != 200:
+        return {"error": "Failed to fetch server list"}
+        
+    data = resp.json()
+    html = data.get("result", "")
+    soup = BeautifulSoup(html, "html.parser")
+    
+    # Just grab the first server link-id
+    li = soup.select_one(".servers li[data-link-id]")
+    if not li:
+        return {"error": "No servers found"}
+        
+    link_id = li.get("data-link-id")
+    source_url = f"{BASE_URL}/ajax/server?get={link_id}"
+    
+    async with httpx.AsyncClient(headers=headers, timeout=15) as client:
+        resp2 = await client.get(source_url)
+        
+    if resp2.status_code != 200:
+        return {"error": "Failed to resolve server"}
+        
+    res_data = resp2.json()
+    embed_url = res_data.get("result", {}).get("url")
+    return {"url": embed_url}
+
