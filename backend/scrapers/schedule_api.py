@@ -4,11 +4,47 @@ import re
 from fastapi import APIRouter
 from bs4 import BeautifulSoup
 
+from database import get_translation, save_translation
+import asyncio
+
 router = APIRouter()
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
+
+async def fetch_english_title(title: str) -> str:
+    cached = get_translation(title)
+    if cached:
+        return cached
+
+    query = """
+    query ($search: String) {
+      Media (search: $search, type: ANIME) {
+        title {
+          english
+          romaji
+        }
+      }
+    }
+    """
+    url = "https://graphql.anilist.co"
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.post(url, json={"query": query, "variables": {"search": title}})
+            if resp.status_code == 200:
+                data = resp.json()
+                media = data.get("data", {}).get("Media", {})
+                if media:
+                    eng = media.get("title", {}).get("english")
+                    rom = media.get("title", {}).get("romaji")
+                    final_title = eng or rom or title
+                    save_translation(title, final_title)
+                    return final_title
+    except Exception:
+        pass
+
+    return title
 
 @router.get("/timetables")
 async def get_timetables(weeksAfter: int = 0):
@@ -111,6 +147,11 @@ async def get_timetables(weeksAfter: int = 0):
                         "type": "SUB" if not air_type else air_type,
                         "time": time_clean
                     })
+            
+            async def resolve_title(v):
+                v["titleEnglish"] = await fetch_english_title(v["title"])
+            
+            await asyncio.gather(*[resolve_title(val) for val in grouped.values()])
             
             for val in grouped.values():
                 if not val["airings"]:

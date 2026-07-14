@@ -33,6 +33,12 @@ def init_db():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS translations (
+            romaji TEXT PRIMARY KEY,
+            english TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -73,3 +79,18 @@ def get_follows():
     conn.close()
     cols = ["id","title","url","thumbnail","source","last_episode","created_at"]
     return [dict(zip(cols, row)) for row in rows]
+
+def get_translation(romaji):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT english FROM translations WHERE romaji = ?", (romaji,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def save_translation(romaji, english):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO translations (romaji, english) VALUES (?, ?)", (romaji, english))
+    conn.commit()
+    conn.close()

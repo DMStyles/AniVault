@@ -29,6 +29,7 @@ export default function App() {
     notifications: true,
     theme: 'dark',
     maxConcurrent: 3,
+    titleLanguage: 'english',
   })
 
   useEffect(() => {

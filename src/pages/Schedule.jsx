@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
+import { AppContext } from '../App'
 
 const API = 'http://localhost:8642'
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 
 export default function Schedule() {
+  const { settings } = useContext(AppContext)
   const [schedule, setSchedule] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -73,7 +75,9 @@ export default function Schedule() {
               )}
               <div className="schedule-card-info">
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8}}>
-                  <p className="schedule-title" style={{flex: 1}}>{show.title}</p>
+                  <p className="schedule-title" style={{flex: 1}}>
+                    {settings.titleLanguage === 'english' ? (show.titleEnglish || show.title) : show.title}
+                  </p>
                   {show.episode && (
                     <span className="badge badge-source" style={{fontSize:10, flexShrink:0}}>{show.episode}</span>
                   )}

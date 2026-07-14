@@ -87,9 +87,29 @@ export default function Settings() {
           </div>
         </section>
 
-        {/* Playback */}
+        {/* Playback & Interface */}
         <section className="settings-section">
-          <h2 className="settings-section-title">Playback</h2>
+          <h2 className="settings-section-title">Playback & Interface</h2>
+          <div className="settings-row">
+            <div>
+              <label className="settings-label">Anime Title Language</label>
+              <p className="settings-desc">Show English titles or Japanese (Romaji) titles</p>
+            </div>
+            <div className="toggle-group">
+              {[
+                { value: 'english', label: 'English' },
+                { value: 'romaji', label: 'Romaji' }
+              ].map(v => (
+                <button 
+                  key={v.value} 
+                  className={`toggle-btn${local.titleLanguage===v.value?' active':''}`} 
+                  onClick={() => set('titleLanguage', v.value)}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="settings-row">
             <div>
               <label className="settings-label">Default Audio/Subtitle</label>
