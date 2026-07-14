@@ -163,6 +163,7 @@ async def get_airing(limit: int = 20):
 
 @router.get("/all")
 async def get_all_anime(page: int = 1, letter: str = None):
+    anime_list = None
     if letter and letter != "#":
         # Sort alphabetically ascending - A titles appear on page 1
         # Use search with letter to find relevant anime
