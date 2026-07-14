@@ -1,7 +1,8 @@
-﻿import React, { useState, useContext, useRef } from 'react'
+import React, { useState, useContext, useRef, useEffect } from 'react'
 import { AppContext } from '../App'
+import { useLocation } from 'react-router-dom'
 
-const API = 'http://localhost:8765'
+const API = 'http://localhost:8642'
 
 export default function Search() {
   const [query, setQuery] = useState('')
@@ -11,6 +12,14 @@ export default function Search() {
   const [activeSource, setActiveSource] = useState('all')
   const { setEpisodeModal } = useContext(AppContext)
   const inputRef = useRef()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.state && location.state.searchQuery) {
+      setQuery(location.state.searchQuery)
+      search(location.state.searchQuery)
+    }
+  }, [location.state])
 
   const search = async (q) => {
     if (!q.trim()) return

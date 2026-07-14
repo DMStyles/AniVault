@@ -27,24 +27,24 @@ def run(cmd, cwd=None, shell=True):
     print(f"{'='*60}")
     result = subprocess.run(cmd, cwd=cwd or ROOT, shell=shell)
     if result.returncode != 0:
-        print(f"\n❌ Command failed with exit code {result.returncode}")
+        print(f"\n[Error] Command failed with exit code {result.returncode}")
         sys.exit(result.returncode)
-    print("✅ Done!")
+    print("[Success] Done!")
 
 
 def clean():
     """Remove previous build artifacts"""
-    print("\n🧹 Cleaning previous builds...")
+    print("\nCleaning previous builds...")
     for folder in [BACKEND_DIST, BACKEND_BUILD, os.path.join(ROOT, "dist"), os.path.join(ROOT, "release")]:
         if os.path.exists(folder):
             shutil.rmtree(folder)
             print(f"  Removed: {folder}")
-    print("✅ Clean done!")
+    print("[Success] Clean done!")
 
 
 def build_backend():
     """Bundle Python backend with PyInstaller"""
-    print("\n🐍 Building Python backend with PyInstaller...")
+    print("\nBuilding Python backend with PyInstaller...")
     run(
         f'pyinstaller anivault-backend.spec '
         f'--distpath "{BACKEND_DIST}" '
@@ -55,45 +55,36 @@ def build_backend():
 
     exe = os.path.join(BACKEND_DIST, "anivault-backend.exe")
     if not os.path.exists(exe):
-        print("❌ Backend exe not found! Build failed.")
+        print("[Error] Backend exe not found! Build failed.")
         sys.exit(1)
     size_mb = os.path.getsize(exe) / 1024 / 1024
-    print(f"✅ Backend built: {exe} ({size_mb:.1f} MB)")
+    print(f"[Success] Backend built: {exe} ({size_mb:.1f} MB)")
 
 
 def build_frontend():
     """Build React frontend with Vite"""
-    print("\n⚛️  Building React frontend with Vite...")
+    print("\nBuilding React frontend with Vite...")
     run("npm run build:react", cwd=ROOT)
 
 
 def build_installer():
     """Package everything with electron-builder"""
-    print("\n📦 Packaging with electron-builder...")
+    print("\nPackaging with electron-builder...")
     run("npx electron-builder --win --x64", cwd=ROOT)
 
     release_dir = os.path.join(ROOT, "release")
     installers = [f for f in os.listdir(release_dir) if f.endswith(".exe") and "Setup" in f]
     if installers:
-        print(f"\n🎉 Installer created: release/{installers[0]}")
+        print(f"\n[Success] Installer created: release/{installers[0]}")
         print(f"   Path: {os.path.join(release_dir, installers[0])}")
     else:
-        print("\n⚠️  Installer not found in release/ folder")
+        print("\n[Warning] Installer not found in release/ folder")
 
 
 if __name__ == "__main__":
-    print("""
-╔═══════════════════════════════════════╗
-║        AniVault Production Build      ║
-╚═══════════════════════════════════════╝
-""")
+    print("\n=== AniVault Production Build ===\n")
     clean()
     build_backend()
     build_frontend()
     build_installer()
-    print("""
-╔═══════════════════════════════════════╗
-║  ✅  Build Complete!                  ║
-║  📁  Check the release/ folder        ║
-╚═══════════════════════════════════════╝
-""")
+    print("\n=== Build Complete! Check the release/ folder ===\n")

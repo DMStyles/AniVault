@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useContext } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../App'
 
@@ -64,14 +64,14 @@ export default function Home() {
           <div className="hero-actions">
             <button
               className="btn btn-primary hero-btn"
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/search', { state: { searchQuery: hero.title } })}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
               Watch Now
             </button>
             <button
               className="btn btn-secondary hero-btn"
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/search', { state: { searchQuery: hero.title } })}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               Find Episodes
@@ -113,7 +113,7 @@ export default function Home() {
             <div
               key={i}
               className="anime-card"
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/search', { state: { searchQuery: item.title } })}
             >
               <div className="anime-card-img">
                 <img src={item.thumbnail} alt={item.title} loading="lazy" />
@@ -144,7 +144,7 @@ export default function Home() {
             <div
               key={i}
               className="anime-card"
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/search', { state: { searchQuery: item.title } })}
             >
               <div className="anime-card-img">
                 <img src={item.thumbnail} alt={item.title} loading="lazy" />
