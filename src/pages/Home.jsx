@@ -56,10 +56,13 @@ export default function Home() {
   const { setEpisodeModal } = useContext(AppContext)
 
   useEffect(() => {
-    const timer = setInterval(() => setHeroIdx(i => (i + 1) % heroSlides.length), 5000)
     fetchFollows()
     fetchAiring()
     fetchHeroSlides()
+  }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => setHeroIdx(i => (i + 1) % heroSlides.length), 5000)
     return () => clearInterval(timer)
   }, [heroSlides.length])
 
