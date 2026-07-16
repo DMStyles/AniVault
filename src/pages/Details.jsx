@@ -515,6 +515,60 @@ export default function Details() {
                 )}
               </div>
             )}
+
+            {/* Trailer & Characters Section below Watch & Download */}
+            {anime.trailer && (
+              <div style={{ marginTop: 24, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🎬 Official Trailer
+                </h3>
+                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  <iframe
+                    src={anime.trailer.url}
+                    title={`${anime.title} Trailer`}
+                    allowFullScreen
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {anime.characters && anime.characters.length > 0 && (
+              <div style={{ marginTop: 20, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  👥 Main Characters
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(95px, 1fr))', gap: 10 }}>
+                  {anime.characters.map(char => (
+                    <div 
+                      key={char.id} 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        textAlign: 'center', 
+                        background: 'rgba(255,255,255,0.02)', 
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)', 
+                        padding: '10px 6px',
+                        transition: 'transform var(--transition)'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                      <img 
+                        src={char.image} 
+                        alt={char.name} 
+                        style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-hover)', marginBottom: 6 }} 
+                      />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: 26, lineHeight: '13px' }}>
+                        {char.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

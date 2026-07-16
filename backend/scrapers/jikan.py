@@ -361,6 +361,24 @@ async def get_details(id: Optional[int] = None, title: Optional[str] = None):
             }
           }
         }
+        characters(role: MAIN, perPage: 8) {
+          edges {
+            node {
+              id
+              name {
+                full
+              }
+              image {
+                medium
+              }
+            }
+          }
+        }
+        trailer {
+          site
+          id
+          thumbnail
+        }
       }
     }
     """
@@ -433,6 +451,28 @@ async def get_details(id: Optional[int] = None, title: Optional[str] = None):
                 "type": rec_media.get("type"),
             })
 
+    # Parse characters
+    characters = []
+    char_edges = (media.get("characters") or {}).get("edges") or []
+    for edge in char_edges:
+        node = edge.get("node")
+        if node:
+            characters.append({
+                "id": node.get("id"),
+                "name": (node.get("name") or {}).get("full") or "Unknown",
+                "image": (node.get("image") or {}).get("medium") or "",
+            })
+
+    # Parse trailer
+    trailer = media.get("trailer")
+    trailer_data = None
+    if trailer and trailer.get("site") == "youtube":
+        trailer_data = {
+            "id": trailer.get("id"),
+            "url": f"https://www.youtube.com/embed/{trailer.get('id')}",
+            "thumbnail": trailer.get("thumbnail"),
+        }
+
     # Clean description from HTML tags
     desc = media.get("description") or ""
     import re
@@ -467,6 +507,8 @@ async def get_details(id: Optional[int] = None, title: Optional[str] = None):
         "season": media.get("season"),
         "relations": relations,
         "recommendations": recommendations,
+        "characters": characters,
+        "trailer": trailer_data,
     }
 
 
