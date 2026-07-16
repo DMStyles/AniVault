@@ -241,6 +241,7 @@ export default function Home() {
         <section className="home-section">
           <div className="section-header">
             <span className="section-title">📺 Latest Episodes</span>
+            <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { showLatest: true } })}>See all →</button>
           </div>
           <div className="horizontal-scroll">
             {latestEpisodes.map((item, i) => (
@@ -303,10 +304,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Recently Released Episodes - LIVE from Jikan */}
+      {/* Recently Released Anime - LIVE from Jikan */}
       <section className="home-section">
         <div className="section-header">
-          <span className="section-title">🕒 Recently Released Episodes</span>
+          <span className="section-title">🕒 Recently Released Anime</span>
           <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/browse')}>See all →</button>
         </div>
         <div className="horizontal-scroll">

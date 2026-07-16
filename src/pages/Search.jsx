@@ -31,7 +31,12 @@ export default function Search() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (location.state?.genre) {
+    if (location.state?.showLatest) {
+      setTab('scrapers')
+      setGenreMode(null)
+      setQuery('')
+      fetchLatestScraperEpisodes()
+    } else if (location.state?.genre) {
       // Genre filter mode — use Jikan API
       setTab('browse')
       setGenreMode(location.state.genre)
@@ -69,6 +74,24 @@ export default function Search() {
       setBrowseError('Failed to load genre. Make sure the backend is running.')
     } finally {
       setBrowseLoading(false)
+    }
+  }
+
+  const fetchLatestScraperEpisodes = async () => {
+    setLoading(true)
+    setError('')
+    setResults([])
+    try {
+      const res = await fetch(`${API}/anikoto/latest`)
+      const data = await res.json()
+      setResults(data.results || [])
+      if ((data.results || []).length === 0) {
+        setError('No latest episodes found.')
+      }
+    } catch {
+      setError('Failed to fetch latest episodes.')
+    } finally {
+      setLoading(false)
     }
   }
 
