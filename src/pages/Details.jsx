@@ -522,13 +522,50 @@ export default function Details() {
                 <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                   🎬 Official Trailer
                 </h3>
-                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                  <iframe
-                    src={anime.trailer.url}
-                    title={`${anime.title} Trailer`}
-                    allowFullScreen
-                    style={{ width: '100%', height: '100%', border: 'none' }}
+                <div 
+                  onClick={() => window.electronAPI?.openExternal ? window.electronAPI.openExternal(`https://www.youtube.com/watch?v=${anime.trailer.id}`) : window.open(`https://www.youtube.com/watch?v=${anime.trailer.id}`, '_blank')}
+                  style={{ 
+                    position: 'relative', 
+                    width: '100%', 
+                    aspectRatio: '16/9', 
+                    borderRadius: 'var(--radius)', 
+                    overflow: 'hidden', 
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer',
+                    background: '#000'
+                  }}
+                >
+                  <img 
+                    src={anime.trailer.thumbnail || `https://img.youtube.com/vi/${anime.trailer.id}/maxresdefault.jpg`} 
+                    alt="Watch Trailer" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }} 
                   />
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.3)',
+                    gap: 12
+                  }}>
+                    <div style={{
+                      width: 64,
+                      height: 44,
+                      background: '#FF0000',
+                      borderRadius: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 16px rgba(255,0,0,0.3)'
+                    }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="#FFF"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#FFF', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+                      Click to Watch Trailer on YouTube
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

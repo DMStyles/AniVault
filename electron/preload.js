@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDownloadFolder: () => ipcRenderer.invoke('select-download-folder'),
   openFolder: (path) => ipcRenderer.invoke('open-folder', path),
   openFile: (path) => ipcRenderer.invoke('open-file', path),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
   // Updates
   checkUpdate: () => ipcRenderer.invoke('check-update'),

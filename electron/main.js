@@ -181,6 +181,10 @@ ipcMain.handle('open-file', async (_, filePath) => {
   await shell.openPath(filePath);
 });
 
+ipcMain.handle('open-external', async (_, url) => {
+  await shell.openExternal(url);
+});
+
 ipcMain.handle('check-update', () => {
   autoUpdater.checkForUpdates();
 });
