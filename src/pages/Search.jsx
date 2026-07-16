@@ -31,7 +31,15 @@ export default function Search() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (location.state?.showLatest) {
+    if (location.state?.tab) {
+      setTab(location.state.tab)
+      setGenreMode(null)
+      setQuery('')
+      if (location.state.tab === 'browse') {
+        setBrowseResults([])
+        fetchBrowse(1, null)
+      }
+    } else if (location.state?.showLatest) {
       setTab('scrapers')
       setGenreMode(null)
       setQuery('')

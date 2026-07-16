@@ -327,7 +327,7 @@ export default function Home() {
       <section className="home-section">
         <div className="section-header">
           <span className="section-title">🔥 Trending Now</span>
-          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/browse')}>See all →</button>
+          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { tab: 'browse' } })}>See all →</button>
         </div>
         <div className="horizontal-scroll">
           {TRENDING.map((item, i) => (
@@ -358,7 +358,7 @@ export default function Home() {
       <section className="home-section">
         <div className="section-header">
           <span className="section-title">🕒 Recently Released Anime</span>
-          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/browse')}>See all →</button>
+          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { tab: 'browse' } })}>See all →</button>
         </div>
         <div className="horizontal-scroll">
           {(airingEpisodes.length > 0 ? airingEpisodes : Array(8).fill(null)).map((item, i) => (
@@ -395,7 +395,7 @@ export default function Home() {
       <section className="home-section">
         <div className="section-header">
           <span className="section-title">🔄 Recently Updated Series</span>
-          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/browse')}>See all →</button>
+          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { showLatest: true } })}>See all →</button>
         </div>
         <div className="horizontal-scroll">
           {[...TRENDING].reverse().map((item, i) => (
