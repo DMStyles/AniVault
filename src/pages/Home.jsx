@@ -52,6 +52,7 @@ export default function Home() {
   const [follows, setFollows] = useState([])
   const [airingEpisodes, setAiringEpisodes] = useState([])
   const [latestEpisodes, setLatestEpisodes] = useState([])
+  const [upcomingAnime, setUpcomingAnime] = useState([])
   const [history, setHistory] = useState([])
   const [recommendations, setRecommendations] = useState([])
   const [heroSlides, setHeroSlides] = useState(HERO_SLIDES)
@@ -63,6 +64,7 @@ export default function Home() {
     fetchAiring()
     fetchHeroSlides()
     fetchLatestEpisodes()
+    fetchUpcomingAnime()
     loadHistory()
     fetchRecommendations()
   }, [])
@@ -118,6 +120,14 @@ export default function Home() {
       const res = await fetch(`${API}/anikoto/latest`)
       const data = await res.json()
       setLatestEpisodes(data.results || [])
+    } catch {}
+  }
+
+  const fetchUpcomingAnime = async () => {
+    try {
+      const res = await fetch(`${API}/anikoto/upcoming`)
+      const data = await res.json()
+      setUpcomingAnime(data.results || [])
     } catch {}
   }
 
@@ -287,6 +297,37 @@ export default function Home() {
                       </span>
                     );
                   })()}
+                </div>
+                <div className="anime-card-info">
+                  <p className="anime-card-title">{item.title}</p>
+                  <p className="anime-card-ep" style={{color:'var(--accent-light)', fontSize:12}}>{item.type}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Upcoming Anime (AniKoto Scraper) */}
+      {upcomingAnime.length > 0 && (
+        <section className="home-section">
+          <div className="section-header">
+            <span className="section-title">📅 Upcoming Anime</span>
+          </div>
+          <div className="horizontal-scroll">
+            {upcomingAnime.map((item, i) => (
+              <div
+                key={i}
+                className="anime-card"
+                onClick={() => navigate('/anime/0', { state: { searchQuery: item.title } })}
+              >
+                <div className="anime-card-img">
+                  <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
+                  <div className="anime-card-overlay">
+                    <button className="card-play-btn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                  </div>
                 </div>
                 <div className="anime-card-info">
                   <p className="anime-card-title">{item.title}</p>

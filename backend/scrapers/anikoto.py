@@ -186,3 +186,46 @@ async def get_latest_episodes():
     except Exception as e:
         return {"results": [], "error": str(e)}
 
+
+@router.get("/upcoming")
+async def get_upcoming_anime():
+    url = f"{BASE_URL}/home"
+    headers = {"User-Agent": HEADERS["User-Agent"]}
+    try:
+        async with httpx.AsyncClient(headers=headers, timeout=15) as client:
+            resp = await client.get(url)
+        if resp.status_code != 200:
+            return {"results": [], "error": f"HTTP {resp.status_code}"}
+            
+        soup = BeautifulSoup(resp.text, "html.parser")
+        
+        upcoming_block = None
+        for block in soup.select(".block, section, .section"):
+            heading_el = block.select_one("h2, h3, .heading, .title")
+            if heading_el and "upcoming anime" in heading_el.text.lower():
+                upcoming_block = block
+                break
+                
+        items_source = upcoming_block if upcoming_block else soup
+        results = []
+        for item in items_source.select(".ani.items .item")[:24]:
+            a = item.select_one("a[href]")
+            img = item.select_one("img")
+            name = item.select_one(".name")
+            sub_ep = item.select_one(".ep-status.sub span")
+            dub_ep = item.select_one(".ep-status.dub span")
+            type_el = item.select_one(".meta .right")
+            if a and name:
+                results.append({
+                    "title": name.get_text(strip=True),
+                    "url": BASE_URL + a["href"] if a["href"].startswith("/") else a["href"],
+                    "thumbnail": img["src"] if img else "",
+                    "sub_episodes": sub_ep.get_text(strip=True) if sub_ep else "0",
+                    "dub_episodes": dub_ep.get_text(strip=True) if dub_ep else "0",
+                    "type": type_el.get_text(strip=True) if type_el else "TV",
+                    "source": "anikoto",
+                })
+        return {"results": results, "source": "anikoto"}
+    except Exception as e:
+        return {"results": [], "error": str(e)}
+
