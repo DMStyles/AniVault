@@ -275,11 +275,18 @@ export default function Home() {
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                     </button>
                   </div>
-                  <span className="anime-card-badge" style={{background:'var(--accent)'}}>
-                    {item.sub_episodes !== '0' ? `Sub ${item.sub_episodes}` : ''}
-                    {item.sub_episodes !== '0' && item.dub_episodes !== '0' ? ' | ' : ''}
-                    {item.dub_episodes !== '0' ? `Dub ${item.dub_episodes}` : ''}
-                  </span>
+                  {(() => {
+                    const subText = item.sub_episodes && item.sub_episodes !== '0' && item.sub_episodes !== '?' ? `Sub ${item.sub_episodes}` : '';
+                    const dubText = item.dub_episodes && item.dub_episodes !== '0' && item.dub_episodes !== '?' ? `Dub ${item.dub_episodes}` : '';
+                    const jointText = subText && dubText ? `${subText} | ${dubText}` : (subText || dubText);
+                    
+                    if (!jointText) return null;
+                    return (
+                      <span className="anime-card-badge" style={{background:'var(--accent)'}}>
+                        {jointText}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="anime-card-info">
                   <p className="anime-card-title">{item.title}</p>
