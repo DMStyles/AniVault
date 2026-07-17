@@ -155,8 +155,17 @@ async def get_latest_episodes():
             return {"results": [], "error": f"HTTP {resp.status_code}"}
             
         soup = BeautifulSoup(resp.text, "html.parser")
+        
+        latest_block = None
+        for block in soup.select(".block, section, .section"):
+            heading_el = block.select_one("h2, h3, .heading, .title")
+            if heading_el and "latest episode" in heading_el.text.lower():
+                latest_block = block
+                break
+                
+        items_source = latest_block if latest_block else soup
         results = []
-        for item in soup.select(".ani.items .item")[:24]:
+        for item in items_source.select(".ani.items .item")[:24]:
             a = item.select_one("a[href]")
             img = item.select_one("img")
             name = item.select_one(".name")

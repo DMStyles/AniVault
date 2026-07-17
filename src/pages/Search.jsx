@@ -360,8 +360,18 @@ export default function Search() {
                     )}
                     <div className="result-badges">
                       {item.score && <span className="badge badge-sub">⭐ {item.score}</span>}
-                      {!item.score && item.sub_episodes !== '0' && <span className="badge badge-sub">SUB</span>}
-                      {item.dub_episodes !== '0' && <span className="badge badge-dub">DUB</span>}
+                      {!item.score && (() => {
+                        const subText = item.sub_episodes && item.sub_episodes !== '0' && item.sub_episodes !== '?' ? `Sub ${item.sub_episodes}` : '';
+                        const dubText = item.dub_episodes && item.dub_episodes !== '0' && item.dub_episodes !== '?' ? `Dub ${item.dub_episodes}` : '';
+                        const jointText = subText && dubText ? `${subText} | ${dubText}` : (subText || dubText);
+                        
+                        if (!jointText) return null;
+                        return (
+                          <span className="badge badge-sub">
+                            {jointText}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="result-card-info">
