@@ -16,6 +16,12 @@ export default function EpisodeModal() {
   const [follows, setFollows] = useState([])
   const [isFollowed, setIsFollowed] = useState(false)
 
+  // Keep quality and subDub in sync with settings context (settings load async)
+  useEffect(() => {
+    if (settings.subDub) setSubDub(settings.subDub)
+    if (settings.quality) setQuality(settings.quality)
+  }, [settings.subDub, settings.quality])
+
   useEffect(() => {
     fetchEpisodes()
     fetchFollows()
@@ -90,6 +96,7 @@ export default function EpisodeModal() {
             download_id: dlId,
             thumbnail: episodeModal.thumbnail,
             source: episodeModal.source,
+            sub_dub: subDub,
           }),
         })
       } catch {}
@@ -109,7 +116,7 @@ export default function EpisodeModal() {
       let finalUrl = ep.url
       if (finalUrl.startsWith('anikoto:')) {
         const dataIds = finalUrl.split('anikoto:')[1]
-        const res = await fetch(`${API}/anikoto/resolve?data_ids=${encodeURIComponent(dataIds)}`)
+        const res = await fetch(`${API}/anikoto/resolve?data_ids=${encodeURIComponent(dataIds)}&sub_dub=${subDub}`)
         const data = await res.json()
         if (data.url) finalUrl = data.url
       } else if (finalUrl.startsWith('kissanime:') || finalUrl.includes('kissanime.com.vc')) {
@@ -167,10 +174,10 @@ export default function EpisodeModal() {
               <option value="720p">720p</option>
               <option value="480p">480p</option>
             </select>
-            <div className="toggle-group">
-              {['sub','dub'].map(v => (
-                <button key={v} className={`toggle-btn${subDub===v?' active':''}`} onClick={() => setSubDub(v)}>
-                  {v.toUpperCase()}
+            <div className="subdub-toggle" title="Switch between Subtitled and Dubbed audio">
+              {['sub', 'dub'].map(v => (
+                <button key={v} className={`subdub-btn${subDub === v ? ' active' : ''}`} onClick={() => setSubDub(v)}>
+                  {v === 'sub' ? '🔤 SUB' : '🎙️ DUB'}
                 </button>
               ))}
             </div>

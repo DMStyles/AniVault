@@ -23,7 +23,7 @@ export default function App() {
   const [episodeModal, setEpisodeModal] = useState(null) // { title, url, thumbnail, source }
   const [playerModal, setPlayerModal] = useState(null)   // { url, title }
   const [downloads, setDownloads] = useState([])
-  const [settings, setSettings] = useState({
+  const defaultSettings = {
     downloadFolder: '',
     quality: 'best',
     subDub: 'sub',
@@ -35,14 +35,16 @@ export default function App() {
     animetakeDomain: 'https://animetake.tv',
     kissanimeDomain: 'https://kissanime.com.vc',
     scheduleDomain: 'https://animeschedule.net',
-  })
+  }
+  const [settings, setSettings] = useState(defaultSettings)
 
   useEffect(() => {
     const savedSettings = localStorage.getItem('anivault-settings')
     let currentSettings = settings
     if (savedSettings) {
       try {
-        currentSettings = JSON.parse(savedSettings)
+        // Merge with defaults so any newly added keys are always present
+        currentSettings = { ...defaultSettings, ...JSON.parse(savedSettings) }
         setSettings(currentSettings)
       } catch (e) {
         console.error('Failed to parse settings', e)

@@ -535,6 +535,39 @@
   color: #fff;
 }
 
+/* Per-anime SUB/DUB pill toggle in episode toolbar */
+.subdub-toggle {
+  display: flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  gap: 0;
+  padding: 2px;
+}
+.subdub-btn {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: transparent;
+  border-radius: 16px;
+  transition: all 0.18s ease;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+}
+.subdub-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.06);
+}
+.subdub-btn.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(var(--accent-rgb, 99,102,241), 0.35);
+}
+
 .toggle-switch {
   width: 44px;
   height: 24px;

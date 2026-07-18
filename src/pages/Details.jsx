@@ -39,6 +39,12 @@ export default function Details() {
   const [queuing, setQueuing] = useState(false)
   const [watchingEp, setWatchingEp] = useState(null) // Ep number being resolved for watch
 
+  // Keep quality and subDub in sync with settings context (settings load async)
+  useEffect(() => {
+    if (settings.subDub) setSubDub(settings.subDub)
+    if (settings.quality) setQuality(settings.quality)
+  }, [settings.subDub, settings.quality])
+
   useEffect(() => {
     fetchAnimeDetails()
   }, [id, location.state])
@@ -470,6 +476,19 @@ export default function Details() {
                   </div>
 
                   <div className="episodes-right-actions">
+                    {activeSource === 'anikoto' && (
+                      <div className="subdub-toggle" title="Switch between Subtitled and Dubbed audio">
+                        {['sub', 'dub'].map(v => (
+                          <button
+                            key={v}
+                            className={`subdub-btn${subDub === v ? ' active' : ''}`}
+                            onClick={() => setSubDub(v)}
+                          >
+                            {v === 'sub' ? '🔤 SUB' : '🎙️ DUB'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <select className="settings-select" value={quality} onChange={e => setQuality(e.target.value)}>
                       <option value="best">Best Quality</option>
                       <option value="1080p">1080p</option>
