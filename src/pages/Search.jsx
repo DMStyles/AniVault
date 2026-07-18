@@ -231,9 +231,9 @@ export default function Search() {
 
   const filtered = activeSource === 'all' ? results : results.filter(r => r.source === activeSource)
 
-  // Sources available based on mode
-  const sourceKeys = genreMode
-    ? [] // genre mode = Jikan only, no source filter needed
+  // Sources available based on mode (Recently Released does not filter by scraper source)
+  const sourceKeys = (genreMode || tab === 'latest')
+    ? []
     : ['all', 'anikoto', 'kissanime', 'animetake']
 
   return (

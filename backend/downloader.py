@@ -75,6 +75,52 @@ async def start_download(req: DownloadRequest):
             except Exception as e:
                 print("[Database Error] failed to add to library:", str(e))
 
+    async def resolve_embed_to_m3u8(embed_url: str) -> str:
+        if ".m3u8" in embed_url or ".mp4" in embed_url:
+            return embed_url
+        import re
+        import urllib.parse
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://anikototv.to/"
+        }
+        async with httpx.AsyncClient(headers=headers, timeout=10) as client:
+            resp = await client.get(embed_url)
+            if resp.status_code != 200:
+                raise Exception(f"Failed to fetch embed page, HTTP {resp.status_code}")
+            soup = BeautifulSoup(resp.text, "html.parser")
+            player_el = soup.select_one("#megaplay-player")
+            if not player_el:
+                cid_match = re.search(r"cid\s*:\s*['\"]([^'\"]+)['\"]", resp.text)
+                if cid_match:
+                    data_id = cid_match.group(1)
+                else:
+                    raise Exception("No player ID element or settings found in embed page")
+            else:
+                data_id = player_el.get("data-id")
+            if not data_id:
+                raise Exception("Could not retrieve data-id from player configurations")
+            parsed_uri = urllib.parse.urlparse(embed_url)
+            domain = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+            sources_url = f"{domain}/stream/getSources"
+            ajax_headers = {
+                **headers,
+                "Referer": embed_url,
+                "X-Requested-With": "XMLHttpRequest"
+            }
+            sources_resp = await client.get(sources_url, params={"id": data_id}, headers=ajax_headers)
+            if sources_resp.status_code != 200:
+                raise Exception(f"Failed to fetch stream sources, HTTP {sources_resp.status_code}")
+            sources_json = sources_resp.json()
+            stream_file = sources_json.get("sources", {}).get("file")
+            if not stream_file:
+                files = sources_json.get("sources", [])
+                if isinstance(files, list) and len(files) > 0:
+                    stream_file = files[0].get("file")
+            if not stream_file:
+                raise Exception(f"No stream file URL resolved. Payload: {sources_json}")
+            return stream_file
+
     def run_download():
         target_url = req.url
         headers = {
@@ -89,13 +135,18 @@ async def start_download(req: DownloadRequest):
                 asyncio.set_event_loop(loop)
                 data_ids = target_url.split("anikoto:")[1]
                 res = loop.run_until_complete(anikoto_resolve(data_ids))
-                loop.close()
-
+                
                 if "url" in res:
-                    target_url = res["url"]
-                    headers["Referer"] = "https://anikototv.to/"
+                    embed_url = res["url"]
+                    headers["Referer"] = embed_url
+                    try:
+                        target_url = loop.run_until_complete(resolve_embed_to_m3u8(embed_url))
+                    except Exception as re_err:
+                        print(f"[Resolver Warning] Direct m3u8 resolution failed, falling back: {re_err}")
+                        target_url = embed_url
                 else:
                     raise Exception(res.get("error", "Failed to resolve stream link"))
+                loop.close()
             except Exception as e:
                 if req.download_id in active_downloads:
                     active_downloads[req.download_id]["status"] = "error"
@@ -109,13 +160,18 @@ async def start_download(req: DownloadRequest):
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 res = loop.run_until_complete(kiss_resolve(target_url))
-                loop.close()
-
+                
                 if "url" in res:
-                    target_url = res["url"]
-                    headers["Referer"] = "https://kissanime.com.vc/"
+                    embed_url = res["url"]
+                    headers["Referer"] = embed_url
+                    try:
+                        target_url = loop.run_until_complete(resolve_embed_to_m3u8(embed_url))
+                    except Exception as re_err:
+                        print(f"[Resolver Warning] Direct m3u8 resolution failed, falling back: {re_err}")
+                        target_url = embed_url
                 else:
                     raise Exception(res.get("error", "Failed to resolve stream link"))
+                loop.close()
             except Exception as e:
                 if req.download_id in active_downloads:
                     active_downloads[req.download_id]["status"] = "error"
