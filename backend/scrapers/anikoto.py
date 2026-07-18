@@ -144,45 +144,82 @@ async def resolve_stream(data_ids: str):
     return {"url": embed_url}
 
 
+import asyncio
+
 @router.get("/latest")
-async def get_latest_episodes():
-    url = f"{BASE_URL}/home"
+async def get_latest_episodes(limit: int = 24):
     headers = {"User-Agent": HEADERS["User-Agent"]}
     try:
-        async with httpx.AsyncClient(headers=headers, timeout=15) as client:
-            resp = await client.get(url)
-        if resp.status_code != 200:
-            return {"results": [], "error": f"HTTP {resp.status_code}"}
-            
-        soup = BeautifulSoup(resp.text, "html.parser")
-        
-        latest_block = None
-        for block in soup.select(".block, section, .section"):
-            heading_el = block.select_one("h2, h3, .heading, .title")
-            if heading_el and "latest episode" in heading_el.text.lower():
-                latest_block = block
-                break
+        if limit <= 24:
+            url = f"{BASE_URL}/home"
+            async with httpx.AsyncClient(headers=headers, timeout=15) as client:
+                resp = await client.get(url)
+            if resp.status_code != 200:
+                return {"results": [], "error": f"HTTP {resp.status_code}"}
                 
-        items_source = latest_block if latest_block else soup
-        results = []
-        for item in items_source.select(".ani.items .item")[:24]:
-            a = item.select_one("a[href]")
-            img = item.select_one("img")
-            name = item.select_one(".name")
-            sub_ep = item.select_one(".ep-status.sub span")
-            dub_ep = item.select_one(".ep-status.dub span")
-            type_el = item.select_one(".meta .right")
-            if a and name:
-                results.append({
-                    "title": name.get_text(strip=True),
-                    "url": BASE_URL + a["href"] if a["href"].startswith("/") else a["href"],
-                    "thumbnail": img["src"] if img else "",
-                    "sub_episodes": sub_ep.get_text(strip=True) if sub_ep else "0",
-                    "dub_episodes": dub_ep.get_text(strip=True) if dub_ep else "0",
-                    "type": type_el.get_text(strip=True) if type_el else "TV",
-                    "source": "anikoto",
-                })
-        return {"results": results, "source": "anikoto"}
+            soup = BeautifulSoup(resp.text, "html.parser")
+            
+            latest_block = None
+            for block in soup.select(".block, section, .section"):
+                heading_el = block.select_one("h2, h3, .heading, .title")
+                if heading_el and "latest episode" in heading_el.text.lower():
+                    latest_block = block
+                    break
+                    
+            items_source = latest_block if latest_block else soup
+            results = []
+            for item in items_source.select(".ani.items .item")[:limit]:
+                a = item.select_one("a[href]")
+                img = item.select_one("img")
+                name = item.select_one(".name")
+                sub_ep = item.select_one(".ep-status.sub span")
+                dub_ep = item.select_one(".ep-status.dub span")
+                type_el = item.select_one(".meta .right")
+                if a and name:
+                    results.append({
+                        "title": name.get_text(strip=True),
+                        "url": BASE_URL + a["href"] if a["href"].startswith("/") else a["href"],
+                        "thumbnail": img["src"] if img else "",
+                        "sub_episodes": sub_ep.get_text(strip=True) if sub_ep else "0",
+                        "dub_episodes": dub_ep.get_text(strip=True) if dub_ep else "0",
+                        "type": type_el.get_text(strip=True) if type_el else "TV",
+                        "source": "anikoto",
+                    })
+            return {"results": results, "source": "anikoto"}
+        else:
+            # Concurrently fetch pages to get up to 100 items (30 items per page)
+            pages_to_fetch = (limit + 29) // 30
+            results = []
+            
+            async with httpx.AsyncClient(headers=headers, timeout=15) as client:
+                tasks = [
+                    client.get(f"{BASE_URL}/filter?sort=recently_updated&page={page}", follow_redirects=True)
+                    for page in range(1, pages_to_fetch + 1)
+                ]
+                responses = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                for resp in responses:
+                    if isinstance(resp, Exception) or resp.status_code != 200:
+                        continue
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    for item in soup.select(".ani.items .item"):
+                        a = item.select_one("a[href]")
+                        img = item.select_one("img")
+                        name = item.select_one(".name")
+                        sub_ep = item.select_one(".ep-status.sub span")
+                        dub_ep = item.select_one(".ep-status.dub span")
+                        type_el = item.select_one(".meta .right")
+                        if a and name:
+                            results.append({
+                                "title": name.get_text(strip=True),
+                                "url": BASE_URL + a["href"] if a["href"].startswith("/") else a["href"],
+                                "thumbnail": img["src"] if img else "",
+                                "sub_episodes": sub_ep.get_text(strip=True) if sub_ep else "0",
+                                "dub_episodes": dub_ep.get_text(strip=True) if dub_ep else "0",
+                                "type": type_el.get_text(strip=True) if type_el else "TV",
+                                "source": "anikoto",
+                            })
+            return {"results": results[:limit], "source": "anikoto"}
     except Exception as e:
         return {"results": [], "error": str(e)}
 

@@ -110,7 +110,7 @@ export default function Search() {
     setError('')
     setResults([])
     try {
-      const res = await fetch(`${API}/anikoto/latest`)
+      const res = await fetch(`${API}/anikoto/latest?limit=100`)
       const data = await res.json()
       setResults(data.results || [])
       if ((data.results || []).length === 0) {
@@ -382,9 +382,22 @@ export default function Search() {
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                       </button>
                     </div>
-                    {item.type && (
+                    {tab === 'latest' && item.sub_episodes && item.sub_episodes !== '0' && item.sub_episodes !== '?' ? (
+                      <span 
+                        className="anime-card-badge" 
+                        style={{ 
+                          background: 'linear-gradient(135deg, var(--cyan), var(--accent))', 
+                          fontWeight: '800', 
+                          border: '1px solid rgba(255,255,255,0.15)', 
+                          boxShadow: '0 2px 8px rgba(6, 182, 212, 0.4)',
+                          letterSpacing: '0.5px'
+                        }}
+                      >
+                        EP {item.sub_episodes}
+                      </span>
+                    ) : item.type ? (
                       <span className="anime-card-badge">{item.type}</span>
-                    )}
+                    ) : null}
                     <div className="result-badges">
                       {item.score && <span className="badge badge-sub">⭐ {item.score}</span>}
                       {!item.score && (() => {
