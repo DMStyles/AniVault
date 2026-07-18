@@ -15,6 +15,7 @@ export default function Search() {
   const [error, setError] = useState('')
   const [activeSource, setActiveSource] = useState('all')
   const [genreMode, setGenreMode] = useState(null) // null = search mode, string = genre name
+  const [timetable, setTimetable] = useState(null)
 
   // Browse index states
   const [browseResults, setBrowseResults] = useState([])
@@ -110,10 +111,21 @@ export default function Search() {
     setError('')
     setResults([])
     try {
-      const res = await fetch(`${API}/anikoto/latest?limit=100`)
-      const data = await res.json()
-      setResults(data.results || [])
-      if ((data.results || []).length === 0) {
+      const [resLatest, resSchedule] = await Promise.all([
+        fetch(`${API}/anikoto/latest?limit=100`),
+        fetch(`${API}/schedule/timetables?weeksAfter=0`).catch(() => null)
+      ])
+      
+      const dataLatest = await resLatest.json()
+      let dataSchedule = null
+      if (resSchedule && resSchedule.ok) {
+        dataSchedule = await resSchedule.json()
+      }
+      
+      setResults(dataLatest.results || [])
+      setTimetable(dataSchedule)
+      
+      if ((dataLatest.results || []).length === 0) {
         setError('No latest episodes found.')
       }
     } catch {
@@ -362,8 +374,121 @@ export default function Search() {
               </div>
             )}
 
-            <div className="results-grid">
-              {filtered.map((item, i) => (
+            {(() => {
+              if (!timetable || results.length === 0) {
+                return (
+                  <div className="results-grid">
+                    {filtered.map((item, i) => (
+                      <div
+                        key={i}
+                        className="result-card"
+                        onClick={() => {
+                          if (item.source === 'jikan' || genreMode) {
+                            navigate(item.mal_id ? `/anime/${item.mal_id}` : '/anime/0', { state: { searchQuery: item.title } })
+                          } else {
+                            navigate('/anime/0', { state: { searchQuery: item.title } })
+                          }
+                        }}
+                      >
+                        <div className="result-card-img">
+                          <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
+                          <div className="result-card-overlay">
+                            <button className="card-play-btn large">
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                            </button>
+                          </div>
+                          {item.sub_episodes && item.sub_episodes !== '0' && item.sub_episodes !== '?' ? (
+                            <span 
+                              className="anime-card-badge" 
+                              style={{ 
+                                background: 'linear-gradient(135deg, var(--cyan), var(--accent))', 
+                                fontWeight: '800', 
+                                border: '1px solid rgba(255,255,255,0.15)', 
+                                boxShadow: '0 2px 8px rgba(6, 182, 212, 0.4)',
+                                letterSpacing: '0.5px'
+                              }}
+                            >
+                              EP {item.sub_episodes}
+                            </span>
+                          ) : item.type ? (
+                            <span className="anime-card-badge">{item.type}</span>
+                          ) : null}
+                          <div className="result-badges">
+                            {item.score && <span className="badge badge-sub">⭐ {item.score}</span>}
+                            {!item.score && (() => {
+                              const subText = item.sub_episodes && item.sub_episodes !== '0' && item.sub_episodes !== '?' ? `Sub ${item.sub_episodes}` : '';
+                              const dubText = item.dub_episodes && item.dub_episodes !== '0' && item.dub_episodes !== '?' ? `Dub ${item.dub_episodes}` : '';
+                              const jointText = subText && dubText ? `${subText} | ${dubText}` : (subText || dubText);
+                              
+                              if (!jointText) return null;
+                              return (
+                                <span className="badge badge-sub">
+                                  {jointText}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                        <div className="result-card-info">
+                          <p className="result-title">{item.title}</p>
+                          <div className="result-meta">
+                            <span className="badge badge-source" style={{textTransform:'capitalize'}}>{item.source === 'jikan' ? 'MAL' : item.source}</span>
+                            <span style={{color:'var(--text-muted)',fontSize:12}}>{item.type}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+
+              // Grouping matching logic
+              const titleToDay = {};
+              Object.entries(timetable).forEach(([day, shows]) => {
+                if (Array.isArray(shows)) {
+                  shows.forEach(show => {
+                    if (show.title) titleToDay[show.title.toLowerCase()] = day;
+                    if (show.titleEnglish) titleToDay[show.titleEnglish.toLowerCase()] = day;
+                  });
+                }
+              });
+
+              const daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+              const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+              const relativeDays = [];
+              for (let i = 0; i < 7; i++) {
+                const idx = (todayIndex - i + 7) % 7;
+                relativeDays.push(daysOrder[idx]);
+              }
+
+              const groups = {};
+              relativeDays.forEach(day => {
+                groups[day] = [];
+              });
+              groups['other'] = [];
+
+              filtered.forEach(item => {
+                const itemTitle = item.title.toLowerCase();
+                let foundDay = null;
+
+                // Match item title to any timetable title
+                for (const [title, day] of Object.entries(titleToDay)) {
+                  if (itemTitle === title || itemTitle.includes(title) || title.includes(itemTitle)) {
+                    foundDay = day;
+                    break;
+                  }
+                }
+
+                if (foundDay && groups[foundDay]) {
+                  groups[foundDay].push(item);
+                } else {
+                  groups['other'].push(item);
+                }
+              });
+
+              const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+              const renderCard = (item, i) => (
                 <div
                   key={i}
                   className="result-card"
@@ -382,7 +507,7 @@ export default function Search() {
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                       </button>
                     </div>
-                    {tab === 'latest' && item.sub_episodes && item.sub_episodes !== '0' && item.sub_episodes !== '?' ? (
+                    {item.sub_episodes && item.sub_episodes !== '0' && item.sub_episodes !== '?' ? (
                       <span 
                         className="anime-card-badge" 
                         style={{ 
@@ -422,8 +547,66 @@ export default function Search() {
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+
+              return (
+                <div className="grouped-results">
+                  {relativeDays.map((day, idx) => {
+                    const items = groups[day] || [];
+                    if (items.length === 0) return null;
+
+                    let headerText = capitalize(day);
+                    if (idx === 0) headerText = `📅 Today (${capitalize(day)})`;
+                    else if (idx === 1) headerText = `📅 Yesterday (${capitalize(day)})`;
+                    else headerText = `📅 ${capitalize(day)}`;
+
+                    return (
+                      <div key={day} className="day-group" style={{ marginBottom: 32 }}>
+                        <h3 className="day-group-title" style={{ 
+                          fontSize: 16, 
+                          fontWeight: 700, 
+                          color: 'var(--accent-light)', 
+                          borderBottom: '1px solid rgba(255,255,255,0.06)', 
+                          paddingBottom: 8, 
+                          marginBottom: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}>
+                          {headerText}
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>({items.length} releases)</span>
+                        </h3>
+                        <div className="results-grid">
+                          {items.map((item, i) => renderCard(item, i))}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {groups['other'] && groups['other'].length > 0 && (
+                    <div className="day-group" style={{ marginBottom: 32 }}>
+                      <h3 className="day-group-title" style={{ 
+                        fontSize: 16, 
+                        fontWeight: 700, 
+                        color: 'var(--text-secondary)', 
+                        borderBottom: '1px solid rgba(255,255,255,0.06)', 
+                        paddingBottom: 8, 
+                        marginBottom: 16,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}>
+                        📦 Other / Completed Releases
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>({groups['other'].length} releases)</span>
+                      </h3>
+                      <div className="results-grid">
+                        {groups['other'].map((item, i) => renderCard(item, i))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </>
         )}
 
