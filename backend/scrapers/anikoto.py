@@ -122,6 +122,7 @@ async def get_episodes(url: str):
 async def resolve_stream(data_ids: str, sub_dub: str = "sub"):
     server_list_url = f"{BASE_URL}/ajax/server/list?servers={data_ids}"
     headers = {"User-Agent": HEADERS["User-Agent"], "X-Requested-With": "XMLHttpRequest"}
+    probe_headers = {"User-Agent": HEADERS["User-Agent"], "Referer": BASE_URL + "/"}
     
     async with httpx.AsyncClient(headers=headers, timeout=15) as client:
         resp = await client.get(server_list_url)
@@ -145,30 +146,52 @@ async def resolve_stream(data_ids: str, sub_dub: str = "sub"):
     if not candidates:
         return {"error": "No servers found"}
 
-    # Resolve all candidates concurrently
+    # Step 1: Resolve all server embed URLs concurrently
     async def resolve_single(li):
         link_id = li.get("data-link-id")
         name = li.text.strip()
         source_url = f"{BASE_URL}/ajax/server?get={link_id}"
         try:
-            r = await client.get(source_url)
-            if r.status_code == 200:
-                url = r.json().get("result", {}).get("url")
-                if url: return {"name": name, "url": url}
-        except: pass
+            async with httpx.AsyncClient(headers=headers, timeout=10) as c:
+                r = await c.get(source_url)
+                if r.status_code == 200:
+                    url = r.json().get("result", {}).get("url")
+                    if url:
+                        return {"name": name, "url": url}
+        except:
+            pass
         return None
 
-    async with httpx.AsyncClient(headers=headers, timeout=15) as client:
-        results = await asyncio.gather(*(resolve_single(c) for c in candidates))
+    resolved = await asyncio.gather(*(resolve_single(c) for c in candidates))
+    valid_servers = [r for r in resolved if r]
     
-    valid_servers = [r for r in results if r]
     if not valid_servers:
         return {"error": "Failed to resolve any servers"}
 
-    # Determine preferred server (HD-1, Vidstream-2, etc. over VidPlay to fix audio)
-    preferred = valid_servers[0]
+    # Step 2: Probe each embed URL to detect 410 (deleted content)
+    # VidPlay (vidtube.site) always returns 200 even when video is gone (it shows its own error page)
+    # Megaplay (megaplay.buzz) returns 410 when video file has been deleted
+    # So we skip any server that returns 410, and return the first alive one
+    async def probe_url(srv):
+        try:
+            async with httpx.AsyncClient(headers=probe_headers, timeout=8, follow_redirects=True) as c:
+                r = await c.head(srv["url"])
+                return r.status_code != 410
+        except:
+            return True  # assume alive if probe fails
+
+    alive_flags = await asyncio.gather(*(probe_url(s) for s in valid_servers))
+    alive_servers = [s for s, alive in zip(valid_servers, alive_flags) if alive]
+
+    # Use alive servers if any, otherwise fall back to all servers (let frontend handle)
+    server_pool = alive_servers if alive_servers else valid_servers
+
+    # Step 3: Among alive servers, prefer megaplay (HD-1, Vidstream-2, VidCloud-1) 
+    # over vidtube (VidPlay) because megaplay correctly separates sub/dub audio tracks.
+    # VidPlay is always a viable fallback since it at least plays something.
+    preferred = server_pool[0]
     for pref_name in ["HD-1", "Vidstream-2", "VidCloud-1"]:
-        for srv in valid_servers:
+        for srv in server_pool:
             if pref_name.lower() in srv["name"].lower():
                 preferred = srv
                 break
@@ -179,7 +202,7 @@ async def resolve_stream(data_ids: str, sub_dub: str = "sub"):
     return {
         "url": preferred["url"],
         "name": preferred["name"],
-        "alternatives": valid_servers
+        "alternatives": valid_servers  # include all (alive + dead) for manual switching
     }
 
 

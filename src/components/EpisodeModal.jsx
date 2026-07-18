@@ -113,7 +113,8 @@ export default function EpisodeModal() {
     
     setWatching(true)
     try {
-      let alternatives = null;
+      let finalUrl = ep.url
+      let alternatives = null
       if (finalUrl.startsWith('anikoto:')) {
         const dataIds = finalUrl.split('anikoto:')[1]
         const res = await fetch(`${API}/anikoto/resolve?data_ids=${encodeURIComponent(dataIds)}&sub_dub=${subDub}`)
@@ -121,7 +122,6 @@ export default function EpisodeModal() {
         if (data.url) finalUrl = data.url
         if (data.alternatives) alternatives = data.alternatives
       } else if (finalUrl.startsWith('kissanime:') || finalUrl.includes('kissanime.com.vc')) {
-        // KissAnime URL directly to the episode page
         const res = await fetch(`${API}/kissanime/resolve?url=${encodeURIComponent(finalUrl)}`)
         const data = await res.json()
         if (data.url) finalUrl = data.url
