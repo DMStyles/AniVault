@@ -86,7 +86,7 @@ export default function Settings() {
             </div>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
               <span style={{fontSize:12,color:'var(--text-muted)',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                {local.downloadFolder || '~/Downloads/AniVault'}
+                {local.downloadFolder || '~/Downloads/KamiWatch'}
               </span>
               <button className="btn btn-secondary" style={{padding:'6px 14px',fontSize:12}} onClick={pickFolder}>Browse</button>
             </div>
@@ -265,7 +265,7 @@ export default function Settings() {
           <div className="settings-row">
             <div>
               <label className="settings-label">App Version</label>
-              <p className="settings-desc">AniVault v{pkg.version} — Auto-updates via GitHub Releases</p>
+              <p className="settings-desc">KamiWatch v{pkg.version} — Auto-updates via GitHub Releases</p>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               {updateStatus && <span style={{fontSize:12,color:'var(--success)'}}>{updateStatus}</span>}
@@ -281,7 +281,7 @@ export default function Settings() {
           <h2 className="settings-section-title">About</h2>
           <div className="settings-row">
             <div>
-              <label className="settings-label">AniVault</label>
+              <label className="settings-label">KamiWatch</label>
               <p className="settings-desc">Anime downloader powered by yt-dlp · Sources: Anikoto, AnimeTake, AnimeSchedule</p>
             </div>
           </div>

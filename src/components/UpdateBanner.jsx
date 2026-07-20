@@ -5,7 +5,7 @@ export default function UpdateBanner({ downloaded, onInstall }) {
     <div className="update-banner">
       <span className="update-banner-text">
         {downloaded
-          ? <><span>AniVault update ready!</span> Restart to apply the latest version.</>
+          ? <><span>KamiWatch update ready!</span> Restart to apply the latest version.</>
           : <><span>New version available!</span> Downloading update in the background...</>
         }
       </span>

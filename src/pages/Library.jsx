@@ -32,7 +32,7 @@ export default function Library() {
 
   const loadWatchlist = () => {
     try {
-      const savedList = JSON.parse(localStorage.getItem('anivault-watchlist') || '{}')
+      const savedList = JSON.parse(localStorage.getItem('kamiwatch-watchlist') || '{}')
       setWatchlist(Object.values(savedList))
     } catch {
       setWatchlist([])
@@ -42,9 +42,9 @@ export default function Library() {
   const handleRemoveFromWatchlist = (title, e) => {
     e.stopPropagation()
     try {
-      const savedList = JSON.parse(localStorage.getItem('anivault-watchlist') || '{}')
+      const savedList = JSON.parse(localStorage.getItem('kamiwatch-watchlist') || '{}')
       delete savedList[title]
-      localStorage.setItem('anivault-watchlist', JSON.stringify(savedList))
+      localStorage.setItem('kamiwatch-watchlist', JSON.stringify(savedList))
       setWatchlist(Object.values(savedList))
     } catch {}
   }

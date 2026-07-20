@@ -8,7 +8,7 @@ export default function TitleBar() {
   return (
     <div className="titlebar">
       <div className="titlebar-left">
-        <span className="titlebar-logo">AniVault</span>
+        <span className="titlebar-logo">KamiWatch</span>
       </div>
       <div className="titlebar-controls">
         <button className="titlebar-btn" onClick={minimize} title="Minimize">

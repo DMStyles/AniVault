@@ -10,8 +10,9 @@ from scrapers.schedule_api import router as schedule_router
 from downloader import router as download_router
 from library import router as library_router
 from database import init_db
+from scrapers.manga import router as manga_router
 
-app = FastAPI(title="AniVault Backend", version="1.0.0")
+app = FastAPI(title="KamiWatch Backend", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,15 +30,16 @@ app.include_router(jikan_router, prefix="/jikan", tags=["Jikan"])
 app.include_router(schedule_router, prefix="/schedule", tags=["Schedule"])
 app.include_router(download_router, prefix="/download", tags=["Download"])
 app.include_router(library_router, prefix="/library", tags=["Library"])
+app.include_router(manga_router, prefix="/manga", tags=["Manga"])
 
 @app.on_event("startup")
 async def startup():
     init_db()
-    print("AniVault backend started on http://localhost:8642")
+    print("KamiWatch backend started on http://localhost:8642")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "2.0.0"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8642, log_level="info")

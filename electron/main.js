@@ -84,7 +84,7 @@ function startBackend() {
   const { execSync } = require('child_process');
   if (process.platform === 'win32') {
     try {
-      execSync('taskkill /F /IM anivault-backend.exe');
+      execSync('taskkill /F /IM kamiwatch-backend.exe');
       console.log('[Backend] Terminated pre-existing backend process instances.');
     } catch (e) {
       // Ignored if process was not running
@@ -102,7 +102,7 @@ function startBackend() {
     const backendExe = path.join(
       process.resourcesPath,
       'backend',
-      process.platform === 'win32' ? 'anivault-backend.exe' : 'anivault-backend'
+      process.platform === 'win32' ? 'kamiwatch-backend.exe' : 'kamiwatch-backend'
     );
     backendCmd = backendExe;
     backendArgs = [];

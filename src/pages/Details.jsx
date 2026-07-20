@@ -87,7 +87,7 @@ export default function Details() {
         setAnime(data)
         // Load watchlist status
         try {
-          const savedList = JSON.parse(localStorage.getItem('anivault-watchlist') || '{}')
+          const savedList = JSON.parse(localStorage.getItem('kamiwatch-watchlist') || '{}')
           setWatchlistStatus(savedList[data.title]?.status || '')
         } catch {}
 
@@ -108,7 +108,7 @@ export default function Details() {
   const handleWatchlistChange = (status) => {
     setWatchlistStatus(status)
     try {
-      const savedList = JSON.parse(localStorage.getItem('anivault-watchlist') || '{}')
+      const savedList = JSON.parse(localStorage.getItem('kamiwatch-watchlist') || '{}')
       if (!status) {
         delete savedList[anime.title]
       } else {
@@ -122,7 +122,7 @@ export default function Details() {
           timestamp: Date.now()
         }
       }
-      localStorage.setItem('anivault-watchlist', JSON.stringify(savedList))
+      localStorage.setItem('kamiwatch-watchlist', JSON.stringify(savedList))
     } catch (e) {
       console.error(e)
     }
@@ -266,7 +266,7 @@ export default function Details() {
       }
       setPlayerModal({ title: `${anime.title} - Episode ${ep.number}`, url: finalUrl, alternatives })
       try {
-        const historyStr = localStorage.getItem('anivault-history') || '[]'
+        const historyStr = localStorage.getItem('kamiwatch-history') || '[]'
         let history = JSON.parse(historyStr)
         history = history.filter(item => item.animeTitle !== anime.title)
         history.unshift({
@@ -280,7 +280,7 @@ export default function Details() {
           timestamp: Date.now()
         })
         if (history.length > 15) history = history.slice(0, 15)
-        localStorage.setItem('anivault-history', JSON.stringify(history))
+        localStorage.setItem('kamiwatch-history', JSON.stringify(history))
       } catch (e) {
         console.error('Failed to save to continue watching:', e)
       }

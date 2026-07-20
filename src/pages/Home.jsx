@@ -92,7 +92,7 @@ export default function Home() {
 
   const loadHistory = () => {
     try {
-      const historyStr = localStorage.getItem('anivault-history') || '[]'
+      const historyStr = localStorage.getItem('kamiwatch-history') || '[]'
       setHistory(JSON.parse(historyStr))
     } catch {
       setHistory([])
@@ -101,7 +101,7 @@ export default function Home() {
 
   const fetchRecommendations = async () => {
     try {
-      const historyStr = localStorage.getItem('anivault-history') || '[]'
+      const historyStr = localStorage.getItem('kamiwatch-history') || '[]'
       const historyItems = JSON.parse(historyStr)
       const ids = historyItems
         .map(h => h.animeId)
@@ -203,7 +203,7 @@ export default function Home() {
         <section className="home-section">
           <div className="section-header">
             <span className="section-title">🕒 Continue Watching</span>
-            <button className="btn btn-ghost" style={{fontSize:12, color:'var(--text-muted)'}} onClick={() => { localStorage.removeItem('anivault-history'); setHistory([]); }}>Clear All</button>
+            <button className="btn btn-ghost" style={{fontSize:12, color:'var(--text-muted)'}} onClick={() => { localStorage.removeItem('kamiwatch-history'); setHistory([]); }}>Clear All</button>
           </div>
           <div className="horizontal-scroll">
             {history.map((item, i) => (

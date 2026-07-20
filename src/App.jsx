@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import React, { useState, useEffect, useContext } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import TitleBar from './components/TitleBar'
 import Home from './pages/Home'
@@ -9,11 +9,15 @@ import Schedule from './pages/Schedule'
 import Library from './pages/Library'
 import Details from './pages/Details'
 import Settings from './pages/Settings'
+import Manga from './pages/Manga'
+import MangaDetails from './pages/MangaDetails'
+import MangaReader from './pages/MangaReader'
 import EpisodeModal from './components/EpisodeModal'
 import PlayerModal from './components/PlayerModal'
 import UpdateBanner from './components/UpdateBanner'
 import './styles/app.css'
 import './styles/pages.css'
+import './styles/manga.css'
 
 export const AppContext = React.createContext({})
 
@@ -39,7 +43,7 @@ export default function App() {
   const [settings, setSettings] = useState(defaultSettings)
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem('anivault-settings')
+    const savedSettings = localStorage.getItem('kamiwatch-settings')
     let currentSettings = settings
     if (savedSettings) {
       try {
@@ -91,7 +95,7 @@ export default function App() {
 
   const saveSettings = (newSettings) => {
     setSettings(newSettings)
-    localStorage.setItem('anivault-settings', JSON.stringify(newSettings))
+    localStorage.setItem('kamiwatch-settings', JSON.stringify(newSettings))
   }
 
   const ctx = {
@@ -122,6 +126,9 @@ export default function App() {
               <Route path="/downloads" element={<Downloads />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/library" element={<Library />} />
+              <Route path="/manga" element={<Manga />} />
+              <Route path="/manga/:id" element={<MangaDetails />} />
+              <Route path="/manga/:id/read/:chapterId" element={<MangaReader />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </main>
