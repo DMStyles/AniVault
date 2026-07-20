@@ -55,8 +55,10 @@ export default function Home() {
   const [upcomingAnime, setUpcomingAnime] = useState([])
   const [history, setHistory] = useState([])
   const [mangaHistory, setMangaHistory] = useState([])
+  const [mangaTrending, setMangaTrending] = useState([])
+  const [mangaNewReleases, setMangaNewReleases] = useState([])
+  const [mangaPopular, setMangaPopular] = useState([])
   const [recommendations, setRecommendations] = useState([])
-  const [upcomingSeason, setUpcomingSeason] = useState([])
   const [heroSlides, setHeroSlides] = useState(HERO_SLIDES)
   const navigate = useNavigate()
   const { setEpisodeModal } = useContext(AppContext)
@@ -67,9 +69,9 @@ export default function Home() {
     fetchHeroSlides()
     fetchLatestEpisodes()
     fetchUpcomingAnime()
-    fetchUpcomingSeason()
     loadHistory()
     fetchRecommendations()
+    fetchMangaRows()
   }, [])
 
   useEffect(() => {
@@ -140,11 +142,21 @@ export default function Home() {
     } catch {}
   }
 
-  const fetchUpcomingSeason = async () => {
+  const fetchMangaRows = async () => {
     try {
-      const res = await fetch(`${API}/jikan/upcoming?limit=20`)
-      const data = await res.json()
-      setUpcomingSeason(data.results || [])
+      const [trendingRes, newRes, popularRes] = await Promise.all([
+        fetch(`${API}/manga/trending`),
+        fetch(`${API}/manga/new-releases`),
+        fetch(`${API}/manga/popular-new`),
+      ])
+      const [trendingData, newData, popularData] = await Promise.all([
+        trendingRes.json(),
+        newRes.json(),
+        popularRes.json(),
+      ])
+      setMangaTrending(trendingData.results || [])
+      setMangaNewReleases(newData.results || [])
+      setMangaPopular(popularData.results || [])
     } catch {}
   }
 
@@ -491,42 +503,92 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Upcoming This Season - live from Jikan */}
-      <section className="home-section">
-        <div className="section-header">
-          <span className="section-title">📅 Upcoming This Season</span>
-          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { showUpcoming: true } })}>See all →</button>
-        </div>
-        <div className="horizontal-scroll">
-          {(upcomingSeason.length > 0 ? upcomingSeason : upcomingAnime.length > 0 ? upcomingAnime : Array(8).fill(null)).map((item, i) => (
-            <div
-              key={i}
-              className="anime-card"
-              onClick={() => item && navigate(item.mal_id ? `/anime/${item.mal_id}` : '/anime/0', { state: { searchQuery: item.title } })}
-            >
-              <div className="anime-card-img">
-                {item ? (
-                  <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                ) : (
-                  <div style={{width:'100%',height:'100%',background:'var(--surface-2)',borderRadius:'var(--radius)'}} />
-                )}
-                {item && (
+      {/* Manga — Trending Now */}
+      {mangaTrending.length > 0 && (
+        <section className="home-section">
+          <div className="section-header">
+            <span className="section-title">📚 Trending Manga</span>
+            <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/manga')}>See all →</button>
+          </div>
+          <div className="horizontal-scroll">
+            {mangaTrending.map((item, i) => (
+              <div key={i} className="anime-card" onClick={() => navigate(`/manga/${encodeURIComponent(item.id)}`, { state: { manga: item } })}>
+                <div className="anime-card-img">
+                  <img src={item.cover} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
                   <div className="anime-card-overlay">
                     <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
                     </button>
                   </div>
-                )}
-                {item && <span className="anime-card-badge" style={{background:'#7c3aed'}}>UPCOMING</span>}
+                  <span className="anime-card-badge" style={{background:'var(--manga-primary,#d97706)',color:'#000',textTransform:'capitalize'}}>{item.status}</span>
+                </div>
+                <div className="anime-card-info">
+                  <p className="anime-card-title">{item.title}</p>
+                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>{item.year || 'Manga'}</p>
+                </div>
               </div>
-              <div className="anime-card-info">
-                <p className="anime-card-title">{item ? item.title : '...'}</p>
-                <p className="anime-card-ep">{item ? (item.type || '') : ''}</p>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Manga — Popular New Updates */}
+      {mangaPopular.length > 0 && (
+        <section className="home-section">
+          <div className="section-header">
+            <span className="section-title">🔥 Recently Updated Manga</span>
+            <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/manga')}>See all →</button>
+          </div>
+          <div className="horizontal-scroll">
+            {mangaPopular.map((item, i) => (
+              <div key={i} className="anime-card" onClick={() => navigate(`/manga/${encodeURIComponent(item.id)}`, { state: { manga: item } })}>
+                <div className="anime-card-img">
+                  <img src={item.cover} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
+                  <div className="anime-card-overlay">
+                    <button className="card-play-btn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    </button>
+                  </div>
+                  <span className="anime-card-badge" style={{background:'#16a34a',color:'#fff'}}>UPDATED</span>
+                </div>
+                <div className="anime-card-info">
+                  <p className="anime-card-title">{item.title}</p>
+                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>{item.year || 'Manga'}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Manga — New Releases */}
+      {mangaNewReleases.length > 0 && (
+        <section className="home-section">
+          <div className="section-header">
+            <span className="section-title">✨ New Manga Releases</span>
+            <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/manga')}>See all →</button>
+          </div>
+          <div className="horizontal-scroll">
+            {mangaNewReleases.map((item, i) => (
+              <div key={i} className="anime-card" onClick={() => navigate(`/manga/${encodeURIComponent(item.id)}`, { state: { manga: item } })}>
+                <div className="anime-card-img">
+                  <img src={item.cover} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
+                  <div className="anime-card-overlay">
+                    <button className="card-play-btn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    </button>
+                  </div>
+                  <span className="anime-card-badge" style={{background:'#7c3aed',color:'#fff'}}>NEW</span>
+                </div>
+                <div className="anime-card-info">
+                  <p className="anime-card-title">{item.title}</p>
+                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>{item.year || 'Manga'}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Popular Genres */}
       <section className="home-section" style={{padding: '0 24px'}}>

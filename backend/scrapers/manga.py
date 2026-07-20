@@ -223,6 +223,83 @@ async def search_manga(q: str, source: str = "auto"):
 
     return {"results": results, "query": q}
 
+
+def _parse_mdex_items(data: dict) -> list:
+    """Shared helper to parse MangaDex manga list responses."""
+    results = []
+    for item in data.get("data", []):
+        attrs = item.get("attributes", {})
+        title = (attrs.get("title") or {}).get("en") or next(iter((attrs.get("title") or {}).values()), "Unknown")
+        cover_id = None
+        for rel in item.get("relationships", []):
+            if rel["type"] == "cover_art":
+                cover_id = rel.get("attributes", {}).get("fileName")
+        cover_url = f"{MANGADEX_IMG}/covers/{item['id']}/{cover_id}.256.jpg" if cover_id else ""
+        results.append({
+            "id": f"mdex:{item['id']}",
+            "title": title,
+            "cover": cover_url,
+            "source": "mangadex",
+            "status": attrs.get("status", "unknown"),
+            "year": attrs.get("year"),
+            "description": (attrs.get("description") or {}).get("en", "")
+        })
+    return results
+
+
+@router.get("/trending")
+async def trending_manga():
+    """Get top followed/popular manga from MangaDex."""
+    params = {
+        "limit": 20,
+        "contentRating[]": ["safe", "suggestive", "erotica"],
+        "includes[]": ["cover_art"],
+        "order[followedCount]": "desc",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15, headers=MANGADEX_HEADERS) as client:
+            r = await client.get(f"{MANGADEX_API}/manga", params=params)
+            return {"results": _parse_mdex_items(r.json())}
+    except Exception as e:
+        print(f"[MangaDex trending error] {e}")
+        return {"results": []}
+
+
+@router.get("/new-releases")
+async def new_manga_releases():
+    """Get recently added manga from MangaDex."""
+    params = {
+        "limit": 20,
+        "contentRating[]": ["safe", "suggestive", "erotica"],
+        "includes[]": ["cover_art"],
+        "order[createdAt]": "desc",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15, headers=MANGADEX_HEADERS) as client:
+            r = await client.get(f"{MANGADEX_API}/manga", params=params)
+            return {"results": _parse_mdex_items(r.json())}
+    except Exception as e:
+        print(f"[MangaDex new-releases error] {e}")
+        return {"results": []}
+
+
+@router.get("/popular-new")
+async def popular_new_manga():
+    """Get recently updated/popular manga from MangaDex."""
+    params = {
+        "limit": 20,
+        "contentRating[]": ["safe", "suggestive", "erotica"],
+        "includes[]": ["cover_art"],
+        "order[latestUploadedChapter]": "desc",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15, headers=MANGADEX_HEADERS) as client:
+            r = await client.get(f"{MANGADEX_API}/manga", params=params)
+            return {"results": _parse_mdex_items(r.json())}
+    except Exception as e:
+        print(f"[MangaDex popular-new error] {e}")
+        return {"results": []}
+
 @router.get("/genre")
 async def browse_genre(genre_id: str = None, demographic: str = None):
     """Browse MangaDex by genre tag or demographic."""
