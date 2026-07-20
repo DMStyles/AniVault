@@ -11,10 +11,10 @@ export default function Manga() {
   const [source, setSource] = useState(location.state?.forceSource || 'auto')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
-  const [searched, setSearched] = useState(false)
-  const [trending, setTrending] = useState([])
   const [activeGenre, setActiveGenre] = useState(null)
   const [scrolled, setScrolled] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const GENRES = [
     { label: 'Action', tag: '391b0423-d847-456f-aff0-8b0cfc03066b' },
@@ -106,6 +106,8 @@ export default function Manga() {
     if (!q.trim()) return
     setLoading(true)
     setSearched(true)
+    setCurrentPage(1)
+    setTotalPages(1)
     try {
       const r = await fetch(`${API}/manga/search?q=${encodeURIComponent(q.trim())}&source=${s}`)
       const data = await r.json()
@@ -118,59 +120,47 @@ export default function Manga() {
     }
   }
 
-  const handleGenre = async (genre) => {
+  const handleGenre = async (genre, page = 1) => {
     setLoading(true)
     setSearched(true)
     setActiveGenre(genre.label)
     try {
-      // Try backend /manga/genre first
-      let url = `${API}/manga/genre?`
-      if (genre.tag) url += `genre_id=${genre.tag}`
-      if (genre.demo) url += `demographic=${genre.demo}`
-      const r = await fetch(url)
-      if (!r.ok) throw new Error('backend genre endpoint unavailable')
-      const data = await r.json()
-      if (data.results && data.results.length > 0) {
-        setResults(data.results)
-        setLoading(false)
-        return
-      }
-      throw new Error('empty results')
+      const MDEX = 'https://api.mangadex.org'
+      const MDEX_IMG = 'https://uploads.mangadex.org'
+      const params = new URLSearchParams({
+        limit: '60',
+        offset: String((page - 1) * 60),
+        'order[followedCount]': 'desc',
+      })
+      params.append('contentRating[]', 'safe')
+      params.append('contentRating[]', 'suggestive')
+      params.append('includes[]', 'cover_art')
+      if (genre.tag) params.append('includedTags[]', genre.tag)
+      if (genre.demo) params.append('publicationDemographic[]', genre.demo)
+
+      const r = await fetch(`${MDEX}/manga?${params}`)
+      const raw = await r.json()
+      
+      const items = (raw.data || []).map(item => {
+        const attrs = item.attributes || {}
+        const title = (attrs.title || {}).en || Object.values(attrs.title || {})[0] || 'Unknown'
+        const coverRel = (item.relationships || []).find(r => r.type === 'cover_art')
+        const fileName = coverRel?.attributes?.fileName
+        const cover = fileName ? `${MDEX_IMG}/covers/${item.id}/${fileName}.256.jpg` : ''
+        return {
+          id: `mdex:${item.id}`,
+          title,
+          cover,
+          source: 'mangadex',
+          status: attrs.status || 'unknown',
+          year: attrs.year,
+        }
+      })
+      setResults(items)
+      setTotalPages(Math.ceil((raw.total || 0) / 60))
+      setCurrentPage(page)
     } catch {
-      // Fallback: call MangaDex API directly from frontend
-      try {
-        const MDEX = 'https://api.mangadex.org'
-        const MDEX_IMG = 'https://uploads.mangadex.org'
-        const params = new URLSearchParams({
-          limit: '100',
-          'order[followedCount]': 'desc',
-        })
-        params.append('contentRating[]', 'safe')
-        params.append('contentRating[]', 'suggestive')
-        params.append('includes[]', 'cover_art')
-        if (genre.tag) params.append('includedTags[]', genre.tag)
-        if (genre.demo) params.append('publicationDemographic[]', genre.demo)
-        const r2 = await fetch(`${MDEX}/manga?${params}`)
-        const raw = await r2.json()
-        const items = (raw.data || []).map(item => {
-          const attrs = item.attributes || {}
-          const title = (attrs.title || {}).en || Object.values(attrs.title || {})[0] || 'Unknown'
-          const coverRel = (item.relationships || []).find(r => r.type === 'cover_art')
-          const fileName = coverRel?.attributes?.fileName
-          const cover = fileName ? `${MDEX_IMG}/covers/${item.id}/${fileName}.256.jpg` : ''
-          return {
-            id: `mdex:${item.id}`,
-            title,
-            cover,
-            source: 'mangadex',
-            status: attrs.status || 'unknown',
-            year: attrs.year,
-          }
-        })
-        setResults(items)
-      } catch {
-        setResults([])
-      }
+      setResults([])
     }
     setLoading(false)
   }
@@ -318,6 +308,35 @@ export default function Manga() {
               </div>
             )}
           </>
+        )}
+
+        {/* Pagination Controls */}
+        {!loading && activeGenre && totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '40px' }}>
+            <button 
+              onClick={() => handleGenre(GENRES.find(g => g.label === activeGenre), currentPage - 1)}
+              disabled={currentPage === 1}
+              style={{
+                padding: '8px 16px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: '8px',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1
+              }}
+            >
+              Previous
+            </button>
+            <span style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '0 12px' }}>
+              Page {currentPage} of {totalPages > 100 ? '100+' : totalPages}
+            </span>
+            <button 
+              onClick={() => handleGenre(GENRES.find(g => g.label === activeGenre), currentPage + 1)}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '8px 16px', background: 'var(--manga-primary)', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1
+              }}
+            >
+              Next Page
+            </button>
+          </div>
         )}
       </div>
     </div>
