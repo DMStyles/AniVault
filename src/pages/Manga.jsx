@@ -3,6 +3,29 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 const API = 'http://localhost:8642'
 
+const MANGA_HERO_SLIDES = [
+  {
+    title: 'Solo Leveling',
+    synopsis: 'In a world where hunters must battle deadly monsters to protect mankind, Sung Jinwoo, the weakest of them all, finds a system that levels him up...',
+    image: 'https://s4.anilist.co/file/anilistcdn/media/manga/banner/105398-fXqIOk6yP17P.jpg',
+  },
+  {
+    title: 'Chainsaw Man',
+    synopsis: 'Denji is a teenage boy living with a Chainsaw Devil named Pochita. Due to the debt his father left behind, he has been living a rock-bottom life...',
+    image: 'https://s4.anilist.co/file/anilistcdn/media/manga/banner/105778-hQhXQ1qYcK11.jpg',
+  },
+  {
+    title: 'Oshi no Ko',
+    synopsis: 'Gorou is a gynecologist and idol fan who\'s in for a shock when his favorite star, Ai, announces an impromptu hiatus...',
+    image: 'https://s4.anilist.co/file/anilistcdn/media/manga/banner/117423-B2eYt1c3U53p.jpg',
+  },
+  {
+    title: 'Dandadan',
+    synopsis: 'Momo Ayase strikes up an unusual friendship with her school\'s UFO fanatic, whom she nicknames "Okarun"...',
+    image: 'https://s4.anilist.co/file/anilistcdn/media/manga/banner/132029-4yW39wR4uFqY.jpg',
+  }
+]
+
 export default function Manga() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -10,11 +33,14 @@ export default function Manga() {
   const [query, setQuery] = useState(location.state?.query || '')
   const [source, setSource] = useState(location.state?.forceSource || 'auto')
   const [results, setResults] = useState([])
+  const [trending, setTrending] = useState([])
+  const [searched, setSearched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [activeGenre, setActiveGenre] = useState(null)
   const [scrolled, setScrolled] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [heroIdx, setHeroIdx] = useState(0)
 
   const GENRES = [
     { label: 'Action', tag: '391b0423-d847-456f-aff0-8b0cfc03066b' },
@@ -61,6 +87,8 @@ export default function Manga() {
 
   // Load trending / popular manga on mount via MangaDex top titles
   useEffect(() => {
+    const timer = setInterval(() => setHeroIdx(i => (i + 1) % MANGA_HERO_SLIDES.length), 6000)
+    
     const loadTrending = async () => {
       try {
         const MDEX = 'https://api.mangadex.org'
@@ -97,6 +125,8 @@ export default function Manga() {
     if (location.state?.query) {
       handleSearch(null, location.state.query, location.state.forceSource || 'auto')
     }
+
+    return () => clearInterval(timer)
   }, [])
 
   const handleSearch = async (e, forceQuery, forceSource) => {
@@ -166,6 +196,7 @@ export default function Manga() {
   }
 
   const displayResults = searched ? results : trending
+  const hero = MANGA_HERO_SLIDES[heroIdx]
 
   const handleScroll = (e) => {
     setScrolled(e.target.scrollTop > 50)
@@ -174,15 +205,22 @@ export default function Manga() {
   return (
     <div className="manga-page" onScroll={handleScroll}>
       {/* Hero Search Bar */}
-      <div className={`manga-hero-bar ${scrolled ? 'scrolled' : ''}`}>
-        <div className="manga-hero-content-wrapper">
-          <div>
+      <div 
+        className={`manga-hero-bar ${scrolled ? 'scrolled' : ''}`}
+        style={!scrolled ? { backgroundImage: `url(${hero.image})`, backgroundSize: 'cover', backgroundPosition: 'center 20%' } : {}}
+      >
+        {!scrolled && <div className="manga-hero-overlay" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(15,10,5,0.98) 0%, rgba(15,10,5,0.85) 40%, rgba(15,10,5,0.3) 100%), linear-gradient(to top, rgba(15,10,5,1) 0%, transparent 40%)', zIndex: 0 }} />}
+        
+        <div className="manga-hero-content-wrapper" style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ maxWidth: '600px' }}>
             <div className="manga-hero-eyebrow">
               <span className="manga-hero-icon">📚</span>
               <span className="manga-hero-label">Manga Reader</span>
             </div>
-            <h1 className="manga-hero-title">Read Manga Online</h1>
-            <p className="manga-hero-sub">Search millions of titles across MangaDex and more</p>
+            <h1 className="manga-hero-title">{scrolled ? 'Read Manga Online' : hero.title}</h1>
+            <p className="manga-hero-sub" style={{ height: scrolled ? 0 : '40px', overflow: 'hidden', transition: 'height 0.3s' }}>
+              {hero.synopsis}
+            </p>
           </div>
 
           <form className="manga-search-bar" onSubmit={handleSearch}>
@@ -257,6 +295,28 @@ export default function Manga() {
             </button>
           ))}
         </div>
+
+        {!scrolled && (
+          <div className="hero-dots" style={{ position: 'absolute', bottom: '24px', right: '32px', zIndex: 2, display: 'flex', gap: '6px' }}>
+            {MANGA_HERO_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                className={`hero-dot${i === heroIdx ? ' active' : ''}`}
+                onClick={() => setHeroIdx(i)}
+                style={{
+                  width: i === heroIdx ? '18px' : '6px',
+                  height: '6px',
+                  borderRadius: i === heroIdx ? '4px' : '50%',
+                  background: i === heroIdx ? 'var(--accent-light)' : 'rgba(255,255,255,0.3)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  padding: 0
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Results Grid */}

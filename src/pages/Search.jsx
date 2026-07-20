@@ -25,6 +25,7 @@ export default function Search() {
   const [hasNext, setHasNext] = useState(false)
   const [totalPages, setTotalPages] = useState(1)
   const [activeLetter, setActiveLetter] = useState(null)
+  const [scrolled, setScrolled] = useState(false)
 
   const { setEpisodeModal } = useContext(AppContext)
   const inputRef = useRef()
@@ -238,11 +239,16 @@ export default function Search() {
     ? []
     : ['all', 'anikoto', 'kissanime', 'animetake', 'museasia']
 
+  const handleScroll = (e) => {
+    setScrolled(e.target.scrollTop > 50)
+  }
+
   return (
-    <div className="search-page" style={{padding:'24px'}}>
+    <div className="search-page" onScroll={handleScroll}>
       
-      {/* Sub tabs to toggle between scraper search and alphabetical MAL browse */}
-      <div style={{display:'flex', gap:10, marginBottom:20, borderBottom:'1px solid var(--border)', paddingBottom:12}}>
+      <div className={`search-sticky-header ${scrolled ? 'scrolled' : ''}`}>
+        {/* Sub tabs to toggle between scraper search and alphabetical MAL browse */}
+        <div style={{display:'flex', gap:10, marginBottom:20, borderBottom: scrolled ? 'none' : '1px solid var(--border)', paddingBottom:12}}>
         <button 
           className={`btn ${tab === 'browse' ? 'btn-primary' : 'btn-secondary'}`}
           style={{fontSize:13, padding:'6px 14px', borderRadius:20}}
@@ -356,9 +362,10 @@ export default function Search() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
-      <div className="search-results">
+      <div className="search-results" style={{ padding: '0 28px 32px' }}>
         
         {/* Render Scraper Search Mode */}
         {tab === 'latest' && (
