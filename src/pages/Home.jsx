@@ -54,7 +54,9 @@ export default function Home() {
   const [latestEpisodes, setLatestEpisodes] = useState([])
   const [upcomingAnime, setUpcomingAnime] = useState([])
   const [history, setHistory] = useState([])
+  const [mangaHistory, setMangaHistory] = useState([])
   const [recommendations, setRecommendations] = useState([])
+  const [upcomingSeason, setUpcomingSeason] = useState([])
   const [heroSlides, setHeroSlides] = useState(HERO_SLIDES)
   const navigate = useNavigate()
   const { setEpisodeModal } = useContext(AppContext)
@@ -65,6 +67,7 @@ export default function Home() {
     fetchHeroSlides()
     fetchLatestEpisodes()
     fetchUpcomingAnime()
+    fetchUpcomingSeason()
     loadHistory()
     fetchRecommendations()
   }, [])
@@ -97,6 +100,12 @@ export default function Home() {
     } catch {
       setHistory([])
     }
+    try {
+      const mh = localStorage.getItem('kamiwatch-manga-history') || '[]'
+      setMangaHistory(JSON.parse(mh))
+    } catch {
+      setMangaHistory([])
+    }
   }
 
   const fetchRecommendations = async () => {
@@ -128,6 +137,14 @@ export default function Home() {
       const res = await fetch(`${API}/anikoto/upcoming`)
       const data = await res.json()
       setUpcomingAnime(data.results || [])
+    } catch {}
+  }
+
+  const fetchUpcomingSeason = async () => {
+    try {
+      const res = await fetch(`${API}/jikan/upcoming?limit=20`)
+      const data = await res.json()
+      setUpcomingSeason(data.results || [])
     } catch {}
   }
 
@@ -226,6 +243,41 @@ export default function Home() {
                 <div className="anime-card-info">
                   <p className="anime-card-title">{item.animeTitle}</p>
                   <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>Last watched: {item.episodeTitle}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Continue Reading Manga */}
+      {mangaHistory.length > 0 && (
+        <section className="home-section">
+          <div className="section-header">
+            <span className="section-title">📖 Continue Reading</span>
+            <button className="btn btn-ghost" style={{fontSize:12, color:'var(--text-muted)'}} onClick={() => { localStorage.removeItem('kamiwatch-manga-history'); setMangaHistory([]); }}>Clear All</button>
+          </div>
+          <div className="horizontal-scroll">
+            {mangaHistory.map((item, i) => (
+              <div
+                key={i}
+                className="anime-card"
+                onClick={() => navigate(`/manga/${encodeURIComponent(item.mangaId)}`, { state: { manga: item } })}
+              >
+                <div className="anime-card-img">
+                  <img src={item.cover} alt={item.mangaTitle} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
+                  <div className="anime-card-overlay">
+                    <button className="card-play-btn">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    </button>
+                  </div>
+                  <span className="anime-card-badge" style={{background:'var(--manga-primary,#d97706)',color:'#000'}}>
+                    Ch {item.chapterNumber}
+                  </span>
+                </div>
+                <div className="anime-card-info">
+                  <p className="anime-card-title">{item.mangaTitle}</p>
+                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>Last read: {item.chapterTitle}</p>
                 </div>
               </div>
             ))}
@@ -439,30 +491,37 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Recently Updated Series */}
+      {/* Upcoming This Season - live from Jikan */}
       <section className="home-section">
         <div className="section-header">
-          <span className="section-title">🔄 Recently Updated Series</span>
-          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { showLatest: true } })}>See all →</button>
+          <span className="section-title">📅 Upcoming This Season</span>
+          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { showUpcoming: true } })}>See all →</button>
         </div>
         <div className="horizontal-scroll">
-          {[...TRENDING].reverse().map((item, i) => (
+          {(upcomingSeason.length > 0 ? upcomingSeason : upcomingAnime.length > 0 ? upcomingAnime : Array(8).fill(null)).map((item, i) => (
             <div
               key={i}
               className="anime-card"
-              onClick={() => navigate('/anime/0', { state: { searchQuery: item.title } })}
+              onClick={() => item && navigate(item.mal_id ? `/anime/${item.mal_id}` : '/anime/0', { state: { searchQuery: item.title } })}
             >
               <div className="anime-card-img">
-                <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                <div className="anime-card-overlay">
-                  <button className="card-play-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                  </button>
-                </div>
+                {item ? (
+                  <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
+                ) : (
+                  <div style={{width:'100%',height:'100%',background:'var(--surface-2)',borderRadius:'var(--radius)'}} />
+                )}
+                {item && (
+                  <div className="anime-card-overlay">
+                    <button className="card-play-btn">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                  </div>
+                )}
+                {item && <span className="anime-card-badge" style={{background:'#7c3aed'}}>UPCOMING</span>}
               </div>
               <div className="anime-card-info">
-                <p className="anime-card-title">{item.title}</p>
-                <p className="anime-card-ep">Ep {item.ep} · {item.type}</p>
+                <p className="anime-card-title">{item ? item.title : '...'}</p>
+                <p className="anime-card-ep">{item ? (item.type || '') : ''}</p>
               </div>
             </div>
           ))}

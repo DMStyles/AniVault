@@ -45,6 +45,30 @@ export default function MangaReader() {
       const r = await fetch(`${API}/manga/pages?id=${encodeURIComponent(decodeURIComponent(chapterId))}`)
       const data = await r.json()
       setPages(data.pages || [])
+
+      // Save to manga history
+      if (manga && chapter) {
+        try {
+          const historyStr = localStorage.getItem('kamiwatch-manga-history') || '[]'
+          let history = JSON.parse(historyStr)
+          // Remove existing entry for same manga
+          history = history.filter(h => h.mangaId !== id)
+          // Add new entry at the top
+          history.unshift({
+            mangaId: id,
+            mangaTitle: manga.title || 'Unknown',
+            cover: manga.cover || '',
+            source: manga.source || 'mangadex',
+            chapterId: chapterId,
+            chapterNumber: chapter.chapter || chapter.number || '?',
+            chapterTitle: chapter.title || `Chapter ${chapter.chapter || '?'}`,
+            readAt: new Date().toISOString()
+          })
+          // Keep only last 20
+          history = history.slice(0, 20)
+          localStorage.setItem('kamiwatch-manga-history', JSON.stringify(history))
+        } catch {}
+      }
     } catch {
       setPages([])
     }

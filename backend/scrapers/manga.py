@@ -224,7 +224,7 @@ async def search_manga(q: str, source: str = "auto"):
     return {"results": results, "query": q}
 
 @router.get("/genre")
-async def browse_genre(genre_id: str, demographic: str = None):
+async def browse_genre(genre_id: str = None, demographic: str = None):
     """Browse MangaDex by genre tag or demographic."""
     url = f"{MANGADEX_API}/manga"
     params = {
