@@ -160,6 +160,42 @@ export default function Details() {
     fetchAnimeDetails()
   }
 
+  const findBestMatch = (resultsList, targetTitle, currentAnimeObj) => {
+    if (!resultsList || resultsList.length === 0) return null
+    const getCleanTitle = (t) => (t || '').toLowerCase().replace(/\(tv\)|\(sub\)|\(dub\)|\(tv series\)|\(ova\)|\(ona\)/gi, '').trim()
+    const targetClean = getCleanTitle(targetTitle)
+    const targetJp = getCleanTitle(currentAnimeObj?.title_japanese)
+
+    // 1. Exact clean title match
+    let match = resultsList.find(r => getCleanTitle(r.title) === targetClean)
+    if (match) return match
+
+    // 2. Japanese / Romaji exact clean match
+    if (targetJp) {
+      match = resultsList.find(r => getCleanTitle(r.title) === targetJp)
+      if (match) return match
+    }
+
+    // 3. Filter out "Movie" / "0 Movie" if target is a TV show
+    const isTargetMovie = targetClean.includes('movie')
+    const pool = resultsList.filter(r => {
+      if (!isTargetMovie) {
+        const rt = r.title.toLowerCase()
+        if (rt.includes('movie') || rt.includes(' 0 ') || rt.includes(' 0:')) return false
+      }
+      return true
+    })
+
+    const candidatePool = pool.length > 0 ? pool : resultsList
+
+    // 4. Starts with target clean title
+    match = candidatePool.find(r => getCleanTitle(r.title).startsWith(targetClean) || targetClean.startsWith(getCleanTitle(r.title)))
+    if (match) return match
+
+    // 5. First candidate in candidate pool
+    return candidatePool[0]
+  }
+
   // Trigger search on selected source when it changes or anime loads
   const searchSourceScraper = async (title, sourceId, currentAnime = anime) => {
     if (!title) return
@@ -202,7 +238,7 @@ export default function Details() {
         } catch {}
       }
 
-      // Fallback 4: First 2-3 words of title (e.g. "Oh Boy, Was I Wrong About Her" -> "Oh Boy, Was")
+      // Fallback 4: First 2-3 words of title
       if (results.length === 0) {
         try {
           const words = title.split(' ')
@@ -218,12 +254,9 @@ export default function Details() {
       setSearchResults(results)
 
       if (results.length > 0) {
-        // Find best match (exact match, romaji match, or first result)
-        const best = results.find(r => r.title.toLowerCase() === title.toLowerCase()) ||
-                     results.find(r => currentAnime?.title_japanese && r.title.toLowerCase() === currentAnime.title_japanese.toLowerCase()) ||
-                     results[0]
+        const best = findBestMatch(results, title, currentAnime)
         setSelectedMatch(best)
-        fetchSourceEpisodes(best.url, sourceId)
+        if (best?.url) fetchSourceEpisodes(best.url, sourceId)
       }
     } catch {
       setSearchResults([])
