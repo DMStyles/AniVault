@@ -390,36 +390,74 @@ async def get_details(id: Optional[int] = None, title: Optional[str] = None):
         title_lower = title.lower().strip() if title else ""
         variables["search"] = TITLE_REPLACEMENTS.get(title_lower, title)
 
+    # Stage 1: Direct Media Search
     result = await anilist_post(query, variables)
     errors = result.get("errors")
     media = (result.get("data") or {}).get("Media")
 
-    # Fallback if title search failed (e.g. strict matching error / Not Found)
+    page_query = """
+    query ($search: String) {
+      Page(page: 1, perPage: 10) {
+        media(type: ANIME, search: $search, sort: POPULARITY_DESC, isAdult: false) {
+          id
+        }
+      }
+    }
+    """
+
+    # Stage 2: Page Search with exact title if direct Media search gave 404/error
     if (errors or not media) and title:
-        import re
-        # Clean title: Remove brackets/parentheses and common suffixes like - Movie, - Prologue, Dub, Sub
-        cleaned = re.sub(r"\[.*?\]|\(.*?\)", "", title)
-        cleaned = re.sub(r"\s-\s(Prologue|Movie|Special|Specials|OVA|ONA|Dub|Sub|Part\s*\d+|Season\s*\d+.*)$", "", cleaned, flags=re.IGNORECASE)
-        cleaned = " ".join(cleaned.split())
-        
-        if cleaned != title:
-            result = await anilist_post(query, {"search": cleaned})
-            errors = result.get("errors")
-            media = (result.get("data") or {}).get("Media")
-            
-        # Second fallback: take first 3 words to query the franchise
-        if errors or not media:
-            words = title.split()
-            if len(words) > 3:
-                short_title = " ".join(words[:3])
-                # Remove trailing colons/commas
-                short_title = re.sub(r"[:,.-]$", "", short_title).strip()
-                result = await anilist_post(query, {"search": short_title})
+        try:
+            page_res = await anilist_post(page_query, {"search": title})
+            page_media = ((page_res.get("data") or {}).get("Page") or {}).get("media") or []
+            if page_media:
+                found_id = page_media[0]["id"]
+                result = await anilist_post(query, {"id": found_id})
                 errors = result.get("errors")
                 media = (result.get("data") or {}).get("Media")
+        except:
+            pass
+
+    # Stage 3: Cleaned Title Search (strip Season X, Part Y, S2, 2nd Season, OVA, Movie, etc.)
+    if (errors or not media) and title:
+        import re
+        cleaned = re.sub(r"\[.*?\]|\(.*?\)", "", title)
+        cleaned = re.sub(r"\s*(Season\s*\d+.*|Part\s*\d+.*|S\d+.*|\d+(st|nd|rd|th)\s*Season.*|Movie|Special|Specials|OVA|ONA|Dub|Sub)$", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"[:,.-]$", "", cleaned).strip()
+        cleaned = " ".join(cleaned.split())
+
+        if cleaned and cleaned.lower() != title.lower():
+            try:
+                page_res = await anilist_post(page_query, {"search": cleaned})
+                page_media = ((page_res.get("data") or {}).get("Page") or {}).get("media") or []
+                if page_media:
+                    found_id = page_media[0]["id"]
+                    result = await anilist_post(query, {"id": found_id})
+                    errors = result.get("errors")
+                    media = (result.get("data") or {}).get("Media")
+            except:
+                pass
+
+    # Stage 4: Base Name Search (first 2-3 words excluding Season/Part keywords)
+    if (errors or not media) and title:
+        import re
+        words = [w for w in title.split() if w.lower() not in ["season", "part", "2nd", "3rd", "4th", "1st", "s2", "s3", "s4"]]
+        if len(words) >= 2:
+            base_name = " ".join(words[:3] if len(words) >= 3 else words[:2])
+            base_name = re.sub(r"[:,.-]$", "", base_name).strip()
+            try:
+                page_res = await anilist_post(page_query, {"search": base_name})
+                page_media = ((page_res.get("data") or {}).get("Page") or {}).get("media") or []
+                if page_media:
+                    found_id = page_media[0]["id"]
+                    result = await anilist_post(query, {"id": found_id})
+                    errors = result.get("errors")
+                    media = (result.get("data") or {}).get("Media")
+            except:
+                pass
 
     if errors and not media:
-        return {"error": errors[0].get("message", "Unknown error")}
+        return {"error": errors[0].get("message", "Anime not found")}
 
     # Parse relations to find prequel, sequel, spin-offs, alternative setting etc.
     relations = []
