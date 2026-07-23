@@ -144,7 +144,7 @@ export default function EpisodeModal() {
     if (targetId && String(targetId).match(/^\d+$/)) {
       navigate(`/anime/${targetId}`)
     } else if (modalTitle && modalTitle !== 'Unknown') {
-      navigate('/search', { state: { searchQuery: modalTitle } })
+      navigate('/anime/0', { state: { searchQuery: modalTitle } })
     }
   }
 

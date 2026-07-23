@@ -222,14 +222,54 @@ function HeroSection({ slides }) {
 }
 
 function Row({ title, items = [], loading = false, onSeeAll, renderCard, skeletonCount = 8 }) {
+  const scrollRef = useRef(null)
+
+  const scroll = (direction) => {
+    if (!scrollRef.current) return
+    const scrollAmount = direction === 'left' ? -520 : 520
+    scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' })
+  }
+
   if (!loading && items.length === 0) return null
   return (
-    <div style={{ marginBottom: 32 }}>
+    <div style={{ marginBottom: 32, position: 'relative' }}>
       <div className="section-header">
         <span className="section-title">{title}</span>
-        {onSeeAll && <span className="section-link" onClick={onSeeAll}>See All →</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={() => scroll('left')}
+              title="Scroll Left"
+              style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
+                color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', transition: 'all 0.2s', fontSize: 16, lineHeight: 1
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              title="Scroll Right"
+              style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
+                color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', transition: 'all 0.2s', fontSize: 16, lineHeight: 1
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+            >
+              ›
+            </button>
+          </div>
+          {onSeeAll && <span className="section-link" onClick={onSeeAll}>See All →</span>}
+        </div>
       </div>
-      <div className="horizontal-scroll">
+      <div className="horizontal-scroll" ref={scrollRef}>
         {loading
           ? <SkeletonCard count={skeletonCount} />
           : items.map((item, i) => renderCard(item, i))
@@ -445,14 +485,17 @@ export default function Home() {
         loading={latestLoading}
         skeletonCount={10}
         onSeeAll={() => navigate('/search')}
-        renderCard={(item, i) => (
-          <AnimeCard
-            key={i}
-            anime={item}
-            badge={item.episode ? `EP ${item.episode}` : undefined}
-            onClick={() => setEpisodeModal({ title: item.title, url: item.url, thumbnail: item.thumbnail || item.cover, source: item.source || 'anikoto' })}
-          />
-        )}
+        renderCard={(item, i) => {
+          const epNum = item.episode || (item.sub_episodes && item.sub_episodes !== '0' ? item.sub_episodes : (item.dub_episodes !== '0' ? item.dub_episodes : null))
+          return (
+            <AnimeCard
+              key={i}
+              anime={item}
+              badge={epNum ? `EP ${epNum}` : undefined}
+              onClick={() => setEpisodeModal({ title: item.title, url: item.url, thumbnail: item.thumbnail || item.cover, source: item.source || 'anikoto' })}
+            />
+          )
+        }}
       />
 
       {/* === TRENDING & POPULAR ANIME === */}

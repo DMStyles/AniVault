@@ -27,26 +27,27 @@ export default function AnimeCard({ anime, onClick, progress, badge, wide = fals
   const type = anime.type || anime.format || ''
   const epCount = anime.episodes || anime.subEpisodes
   const targetId = anime.id || anime.animeId || anime.malId
-  const displayBadge = badge || (anime.episodeNumber ? `EP ${anime.episodeNumber}` : null)
+  
+  // Episode badge fallback (e.g. sub_episodes, episode, ep, etc.)
+  const epNum = anime.episode || anime.sub_episodes || anime.episodeNumber || anime.ep
+  const displayBadge = badge || (epNum && epNum !== '0' ? `EP ${epNum}` : null)
+
+  const goToDetails = () => {
+    if (targetId && String(targetId).match(/^\d+$/)) {
+      navigate(`/anime/${targetId}`)
+    } else if (title && title !== 'Unknown') {
+      navigate('/anime/0', { state: { searchQuery: title } })
+    }
+  }
 
   const handleClick = (e) => {
     if (onClick) { onClick(anime); return }
-    if (targetId && String(targetId).match(/^\d+$/)) {
-      navigate(`/anime/${targetId}`)
-    } else if (anime.url && !anime.url.startsWith('anikoto:')) {
-      setEpisodeModal({ title, url: anime.url, thumbnail: cover, source: anime.source || 'anikoto', id: targetId })
-    } else if (title && title !== 'Unknown') {
-      navigate('/search', { state: { searchQuery: title } })
-    }
+    goToDetails()
   }
 
   const handleGoToDetails = (e) => {
     e.stopPropagation()
-    if (targetId && String(targetId).match(/^\d+$/)) {
-      navigate(`/anime/${targetId}`)
-    } else {
-      navigate('/search', { state: { searchQuery: title } })
-    }
+    goToDetails()
   }
 
   const cardWidth = wide ? 190 : 150
@@ -88,7 +89,7 @@ export default function AnimeCard({ anime, onClick, progress, badge, wide = fals
 
         {/* Hover overlay */}
         <div className="anime-card-overlay">
-          <div className="card-play-btn" title="View Details / Watch">
+          <div className="card-play-btn" title="View Details">
             <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
               <polygon points="5 3 19 12 5 21 5 3"/>
             </svg>
@@ -119,7 +120,7 @@ export default function AnimeCard({ anime, onClick, progress, badge, wide = fals
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(7,7,15,0.85)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
           >
-            ℹ️ Details
+            📖 Details
           </button>
         </div>
 
@@ -161,7 +162,7 @@ export default function AnimeCard({ anime, onClick, progress, badge, wide = fals
           </div>
         )}
 
-        {/* Custom badge (e.g. NEW, EP 5) */}
+        {/* Custom badge (e.g. EP 12, NEW) */}
         {displayBadge && (
           <div style={{
             position: 'absolute', bottom: 7, left: 7,
