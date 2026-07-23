@@ -75,16 +75,20 @@ def parse_media(item: dict) -> dict:
         score = round(score / 10, 1)
     img = (item.get("coverImage") or {})
     thumbnail = img.get("extraLarge") or img.get("large", "")
+    media_id = item.get("id")
     return {
+        "id": media_id,
         "title": title_en or title_jp,
         "title_japanese": title_jp,
+        "cover": thumbnail,
+        "image": thumbnail,
         "thumbnail": thumbnail,
         "sub_episodes": str(item.get("episodes") or "?"),
         "dub_episodes": "0",
         "type": (item.get("format") or "TV").replace("_", " "),
         "score": score,
         "source": "jikan",
-        "mal_id": item.get("id"),
+        "mal_id": media_id,
         "year": (item.get("startDate") or {}).get("year"),
         "status": item.get("status"),
         "ep": item.get("episodes") or "?",

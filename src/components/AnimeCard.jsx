@@ -78,6 +78,8 @@ export default function AnimeCard({ anime, onClick, progress, badge, wide = fals
             src={cover}
             alt={title}
             loading="lazy"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
             style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
             className="card-poster"
           />
