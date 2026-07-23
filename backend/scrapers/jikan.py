@@ -672,3 +672,41 @@ async def get_history_recommendations(ids: Optional[str] = None):
     random.shuffle(results)
     return {"results": results[:15]}
 
+
+@router.get("/jikan/characters")
+async def get_characters(id: int):
+    """Fetch character list for an anime from AniList GraphQL API."""
+    query = """
+    query ($id: Int) {
+      Media (id: $id, type: ANIME) {
+        characters(sort: ROLE, perPage: 20) {
+          edges {
+            role
+            node {
+              id
+              name { full }
+              image { medium large }
+            }
+          }
+        }
+      }
+    }
+    """
+    try:
+        data = await anilist_post(query, {"id": id})
+        edges = ((data.get("data") or {}).get("Media") or {}).get("characters", {}).get("edges", [])
+        characters = []
+        for edge in edges:
+            node = edge.get("node", {})
+            if not node:
+                continue
+            characters.append({
+                "id": node.get("id"),
+                "name": (node.get("name") or {}).get("full", "Unknown"),
+                "image": (node.get("image") or {}).get("large") or (node.get("image") or {}).get("medium", ""),
+                "role": edge.get("role", "SUPPORTING").capitalize(),
+            })
+        return characters
+    except Exception as e:
+        return []
+

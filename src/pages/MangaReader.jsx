@@ -101,6 +101,12 @@ export default function MangaReader() {
     })
   }
 
+  const getImageUrl = (url) => {
+    if (!url) return ''
+    if (url.startsWith('/')) return `${API}${url}`
+    return url
+  }
+
   return (
     <div className="manga-reader-page">
       {/* Top bar */}
@@ -179,7 +185,14 @@ export default function MangaReader() {
               <p style={{ color: 'var(--text-muted)', marginBottom: 20, maxWidth: 400, textAlign: 'center' }}>
                 MangaDex redirects to official publishers (like MangaPlus) for this chapter.
               </p>
-              <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button
+                  className="manga-read-btn"
+                  onClick={() => navigate('/manga', { state: { search: manga?.title } })}
+                  style={{ background: 'var(--accent, #6366f1)', color: '#fff', padding: '8px 16px', borderRadius: 8, fontWeight: 700 }}
+                >
+                  ⚡ Search Alternate Manga Sources
+                </button>
                 <button
                   className="manga-read-btn"
                   onClick={() => {
@@ -189,7 +202,7 @@ export default function MangaReader() {
                       window.open(chapter.externalUrl, '_blank')
                     }
                   }}
-                  style={{ background: 'var(--manga-primary)', color: '#000' }}
+                  style={{ background: 'var(--manga-primary)', color: '#000', padding: '8px 16px', borderRadius: 8, fontWeight: 700 }}
                 >
                   🌐 Open Official Source
                 </button>
@@ -221,7 +234,7 @@ export default function MangaReader() {
           {pages.map((src, i) => (
             <img
               key={i}
-              src={src.startsWith('/') ? `${API}${src}` : src}
+              src={getImageUrl(src)}
               alt={`Page ${i + 1}`}
               loading="lazy"
               referrerPolicy="no-referrer"
@@ -259,7 +272,7 @@ export default function MangaReader() {
 
           <img
             className="manga-reader-paged-img"
-            src={pages[currentPage]?.startsWith('/') ? `${API}${pages[currentPage]}` : pages[currentPage]}
+            src={getImageUrl(pages[currentPage])}
             alt={`Page ${currentPage + 1}`}
             referrerPolicy="no-referrer"
           />

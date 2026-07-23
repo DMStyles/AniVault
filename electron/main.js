@@ -1,8 +1,10 @@
 const { app, BrowserWindow, ipcMain, dialog, Notification, shell, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const { autoUpdater } = require('electron-updater');
 const http = require('http');
+const https = require('https');
 
 // Global crash protection handlers
 process.on('uncaughtException', (err) => {
@@ -48,6 +50,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      webviewTag: true,
     },
     icon: path.join(__dirname, '../public/icon.ico'),
   });
@@ -79,6 +82,16 @@ function createWindow() {
 
   mainWindow.on('closed', () => { mainWindow = null; });
 }
+
+// Global popup ad blocker across all webviews and child frames
+app.on('web-contents-created', (event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (url && url.includes('github.com')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+});
 
 function startBackend() {
   const { execSync } = require('child_process');
@@ -245,4 +258,171 @@ autoUpdater.on('update-downloaded', (info) => {
 autoUpdater.on('error', (err) => {
   console.error('[Updater] Error:', err.message);
   mainWindow?.webContents.send('update-error', err.message);
+});
+
+// Embedded player cross-origin frame seeking & progress query handlers
+ipcMain.handle('player-seek', async (event, seconds) => {
+  if (!mainWindow) return false;
+  try {
+    return await mainWindow.webContents.executeJavaScript(`
+      (function() {
+        function findAndSeek(win, secs) {
+          try {
+            let v = win.document.querySelector('video');
+            if (v) { v.currentTime += secs; return true; }
+            for (let i = 0; i < win.frames.length; i++) {
+              if (findAndSeek(win.frames[i], secs)) return true;
+            }
+          } catch(e) {}
+          return false;
+        }
+        let wv = document.querySelector('webview');
+        if (wv) {
+          try {
+            wv.executeJavaScript('let v = document.querySelector("video"); if (v) v.currentTime += ' + ${seconds} + ';');
+          } catch(e){}
+        }
+        return findAndSeek(window, ${seconds});
+      })();
+    `);
+  } catch (e) {
+    return false;
+  }
+});
+
+ipcMain.handle('player-get-time', async () => {
+  if (!mainWindow) return null;
+  try {
+    return await mainWindow.webContents.executeJavaScript(`
+      (function() {
+        function getTime(win) {
+          try {
+            let v = win.document.querySelector('video');
+            if (v && v.duration > 0) {
+              return { currentTime: v.currentTime, duration: v.duration };
+            }
+            for (let i = 0; i < win.frames.length; i++) {
+              let t = getTime(win.frames[i]);
+              if (t) return t;
+            }
+          } catch(e) {}
+          return null;
+        }
+        let wv = document.querySelector('webview');
+        if (wv) {
+          try {
+            wv.executeJavaScript('let v = document.querySelector("video"); if (v && v.duration > 0) ({ currentTime: v.currentTime, duration: v.duration });');
+          } catch(e){}
+        }
+        return getTime(window);
+      })();
+    `);
+  } catch (e) {
+    return null;
+  }
+});
+
+// ============================================================
+// EXTENSION SYSTEM
+// ============================================================
+const extensionRunner = require('./extensionRunner');
+const extensionsDir = path.join(app.getPath('userData'), 'extensions');
+
+// Create extensions directory if it doesn't exist
+try { fs.mkdirSync(extensionsDir, { recursive: true }); } catch {}
+
+// Load all installed extensions on startup
+async function loadAllExtensions() {
+  try {
+    const files = fs.readdirSync(extensionsDir).filter(f => f.endsWith('.js'));
+    for (const file of files) {
+      const id = path.basename(file, '.js');
+      const code = fs.readFileSync(path.join(extensionsDir, file), 'utf8');
+      const result = await extensionRunner.loadExtension(id, code);
+      if (result.success) {
+        console.log(`[Extensions] Loaded: ${result.manifest.name} (${id})`);
+      } else {
+        console.error(`[Extensions] Failed to load ${id}:`, result.error);
+      }
+    }
+  } catch (e) {
+    console.error('[Extensions] Error loading extensions:', e.message);
+  }
+}
+
+app.whenReady().then(() => {
+  loadAllExtensions();
+});
+
+// List all installed extensions
+ipcMain.handle('extension:list', async () => {
+  try {
+    return extensionRunner.getLoadedExtensions();
+  } catch (e) {
+    return [];
+  }
+});
+
+// Install an extension from a URL or raw code
+ipcMain.handle('extension:install', async (event, { url, code }) => {
+  try {
+    let extCode = code;
+
+    // Download from URL if no code provided
+    if (url && !extCode) {
+      extCode = await new Promise((resolve, reject) => {
+        const isHttps = url.startsWith('https');
+        const lib = isHttps ? https : http;
+        lib.get(url, { headers: { 'User-Agent': 'KamiWatch/3.0' } }, (res) => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`HTTP ${res.statusCode} fetching extension URL`));
+            return;
+          }
+          let data = '';
+          res.on('data', chunk => { data += chunk; });
+          res.on('end', () => resolve(data));
+        }).on('error', reject);
+      });
+    }
+
+    if (!extCode) return { success: false, error: 'No extension code or URL provided' };
+
+    // Test load to validate manifest and syntax
+    const testResult = await extensionRunner.loadExtension('__test__', extCode);
+    extensionRunner.unloadExtension('__test__');
+    if (!testResult.success) return { success: false, error: testResult.error };
+
+    // Use manifest id or sanitize name for filename
+    const extId = (testResult.manifest.id || testResult.manifest.name)
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '-')
+      .replace(/-+/g, '-');
+
+    const filePath = path.join(extensionsDir, `${extId}.js`);
+    fs.writeFileSync(filePath, extCode, 'utf8');
+
+    // Actually load it
+    await extensionRunner.loadExtension(extId, extCode);
+
+    return { success: true, id: extId, manifest: testResult.manifest };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+// Remove an extension
+ipcMain.handle('extension:remove', async (event, { id }) => {
+  try {
+    const filePath = path.join(extensionsDir, `${id}.js`);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    extensionRunner.unloadExtension(id);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+// Call a function from an extension
+ipcMain.handle('extension:call', async (event, { id, fn, args }) => {
+  return extensionRunner.callFunction(id, fn, args || []);
 });

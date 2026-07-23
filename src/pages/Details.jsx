@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { AppContext } from '../App'
+import SkeletonCard from '../components/SkeletonCard'
 
 const API = 'http://localhost:8642'
 const SOURCES = [
@@ -15,7 +16,13 @@ export default function Details() {
   const navigate = useNavigate()
   const location = useLocation()
   
-  const { setPlayerModal, setDownloads, settings } = useContext(AppContext)
+  const { settings, playerModal, setPlayerModal, setDownloads } = useContext(AppContext)
+
+  // Force progress bar update on modal close
+  const [progressTick, setProgressTick] = useState(0)
+  useEffect(() => {
+    setProgressTick(t => t + 1)
+  }, [playerModal])
 
   // Anime Details States
   const [anime, setAnime] = useState(null)
@@ -38,7 +45,7 @@ export default function Details() {
   const [selectedEpisodes, setSelectedEpisodes] = useState(new Set())
   const [quality, setQuality] = useState(settings.quality || 'best')
   const [subDub, setSubDub] = useState(settings.subDub || 'sub')
-  const [preferredServer, setPreferredServer] = useState('auto')
+  const [preferredServer, setPreferredServer] = useState('VidPlay-1')
   const [queuing, setQueuing] = useState(false)
   const [watchingEp, setWatchingEp] = useState(null) // Ep number being resolved for watch
 
@@ -283,7 +290,14 @@ export default function Details() {
         const data = await res.json()
         if (data.url) finalUrl = data.url
       }
-      setPlayerModal({ title: `${anime.title} - Episode ${ep.number}`, url: finalUrl, alternatives })
+      setPlayerModal({
+        title: `${anime.title} - Episode ${ep.number}`,
+        url: finalUrl,
+        alternatives,
+        id: anime.id,
+        malId: anime.id,
+        epNumber: ep.number
+      })
       try {
         const historyStr = localStorage.getItem('kamiwatch-history') || '[]'
         let history = JSON.parse(historyStr)
@@ -307,64 +321,129 @@ export default function Details() {
     setWatchingEp(null)
   }
 
+  const [characters, setCharacters] = useState([])
+  const [charsLoading, setCharsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!anime?.id) return
+    setCharsLoading(true)
+    fetch(`${API}/jikan/characters?id=${anime.id}`)
+      .then(r => r.json())
+      .then(d => setCharacters((d || []).slice(0, 16)))
+      .catch(() => {})
+      .finally(() => setCharsLoading(false))
+  }, [anime?.id])
+
   if (loading) {
     return (
-      <div className="details-loading">
-        <span className="spinner large" />
-        <p>Fetching full anime details...</p>
+      <div style={{ minHeight: '100vh' }}>
+        <div className="skeleton" style={{ height: '45vh', borderRadius: 0 }} />
+        <div style={{ padding: '24px 32px', display: 'flex', gap: 28, marginTop: -60 }}>
+          <div className="skeleton" style={{ width: 220, height: 310, borderRadius: 14, flexShrink: 0 }} />
+          <div style={{ flex: 1, paddingTop: 70 }}>
+            <div className="skeleton" style={{ width: '60%', height: 28, borderRadius: 8, marginBottom: 14 }} />
+            <div className="skeleton" style={{ width: '40%', height: 14, borderRadius: 8, marginBottom: 24 }} />
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+              {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ width: 80, height: 24, borderRadius: 99 }} />)}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (error || !anime) {
     return (
-      <div className="details-error">
-        <span style={{fontSize:50}}>😞</span>
-        <h2>Failed to load details</h2>
-        <p>{error || 'Anime not found.'}</p>
-        <button className="btn btn-primary" onClick={() => navigate(-1)}>Go Back</button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, padding: 32 }}>
+        <span style={{fontSize:64}}>😞</span>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Failed to load details</h2>
+        <p style={{ color: 'var(--text-secondary)' }}>{error || 'Anime not found.'}</p>
+        <button className="btn btn-primary" onClick={() => navigate(-1)}>← Go Back</button>
       </div>
     )
   }
 
+  const backdropUrl = anime.banner || anime.cover
+
   return (
-    <div className="details-page">
-      {/* Hero Banner Area */}
-      <div 
-        className="details-hero" 
-        style={{ backgroundImage: anime.banner ? `url(${anime.banner})` : `url(${anime.cover})` }}
-      >
-        <div className="details-hero-overlay" />
-        <div className="details-hero-content" style={{ justifyContent: 'center' }}>
-          <button className="btn btn-secondary back-btn" onClick={() => navigate(-1)}>
-            ← Back
-          </button>
-        </div>
+    <div className="details-page" style={{ minHeight: '100%', paddingBottom: 48 }}>
+
+      {/* =========================================================
+          CINEMATIC HERO BACKDROP
+      ========================================================= */}
+      <div style={{ position: 'relative', height: '45vh', minHeight: 300, maxHeight: 440, overflow: 'hidden' }}>
+        {/* Blurred backdrop */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${backdropUrl})`,
+          backgroundSize: 'cover', backgroundPosition: 'center 20%',
+          filter: 'blur(6px) brightness(0.45)',
+          transform: 'scale(1.08)',
+        }} />
+
+        {/* Gradient overlays */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(7,7,15,0.3) 0%, rgba(7,7,15,0.7) 70%, var(--bg-primary) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(7,7,15,0.6) 0%, transparent 60%)' }} />
+
+        {/* Back button */}
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            position: 'absolute', top: 16, left: 24,
+            background: 'rgba(7,7,15,0.6)', backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: '#fff', borderRadius: 8, padding: '7px 16px',
+            fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(124,58,237,0.25)'; e.currentTarget.style.borderColor = 'rgba(124,58,237,0.5)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(7,7,15,0.6)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
       </div>
 
-      {/* Two-Column Layout */}
-      <div className="details-container">
-        
-        {/* Left Column: Metadata & Relations */}
-        <div className="details-col-left">
-          <div className="cover-art-container">
-            <img src={anime.cover} alt={anime.title} className="details-cover-img" />
+      {/* =========================================================
+          MAIN CONTENT — floating cover card + info
+      ========================================================= */}
+      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 28, padding: '0 28px', marginTop: -80, position: 'relative', zIndex: 10, maxWidth: 1400, margin: '-80px auto 0' }}>
+
+        {/* Left Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Floating cover art */}
+          <div style={{
+            borderRadius: 16, overflow: 'hidden',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            aspectRatio: '2/3', background: '#111120',
+          }}>
+            <img src={anime.cover} alt={anime.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           </div>
 
-          <div style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10
-          }}>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>Watchlist:</span>
+          {/* Quick stats card */}
+          <div style={{ background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              { label: 'Status', val: anime.status },
+              { label: 'Type', val: anime.type },
+              { label: 'Episodes', val: anime.episodes || '?' },
+              { label: 'Studio', val: anime.studio },
+              { label: 'Season', val: anime.season && anime.year ? `${anime.season} ${anime.year}` : anime.year },
+              { label: 'Score', val: anime.score ? `⭐ ${anime.score}` : null },
+            ].filter(r => r.val).map(row => (
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{row.label}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, textAlign: 'right', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.val}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Watchlist */}
+          <div style={{ background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>Watchlist</span>
             <select
               className="settings-select"
-              style={{ minWidth: 140, background: 'var(--bg-secondary)', borderColor: 'var(--border-hover)' }}
+              style={{ flex: 1, minWidth: 0, background: 'var(--bg-secondary)', borderColor: 'var(--border-hover)', fontSize: 12 }}
               value={watchlistStatus}
               onChange={(e) => handleWatchlistChange(e.target.value)}
             >
@@ -376,13 +455,15 @@ export default function Details() {
             </select>
           </div>
 
-          <div className="details-metadata-card">
-            <h3>Synopsis</h3>
-            <p className="details-description">{anime.description || 'No description available.'}</p>
-            
-            <div className="details-genres">
-              {anime.genres.map(g => (
-                <span key={g} className="details-genre-tag">{g}</span>
+          {/* Synopsis + Genres */}
+          <div style={{ background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 3, height: 14, background: 'var(--gradient-accent)', borderRadius: 2, display: 'block' }} /> Synopsis
+            </div>
+            <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 12 }}>{anime.description || 'No description available.'}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {(anime.genres || []).map(g => (
+                <span key={g} style={{ padding: '3px 10px', borderRadius: 99, background: 'rgba(124,58,237,0.12)', color: 'var(--accent-light)', border: '1px solid rgba(124,58,237,0.25)', fontSize: 11, fontWeight: 600 }}>{g}</span>
               ))}
             </div>
           </div>
@@ -490,22 +571,25 @@ export default function Details() {
           )}
         </div>
 
-        {/* Right Column: Sources & Episodes */}
-        <div className="details-col-right">
-          <div className="details-header-card">
-            <h1 className="details-title-main">{anime.title}</h1>
+        {/* Right Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Title + Badges */}
+          <div style={{ paddingTop: 88 }}>
+            <h1 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.6rem)', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: 8, color: '#fff' }}>{anime.title}</h1>
             {anime.title_romaji && anime.title_romaji !== anime.title && (
-              <p className="details-subtitle-romaji-main">🇯🇵 {anime.title_romaji}</p>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14, fontStyle: 'italic' }}>🇯🇵 {anime.title_romaji}</p>
             )}
-            <div className="details-badges-main">
-              {anime.score && <span className="badge badge-sub">⭐ {anime.score} Score</span>}
-              <span className="badge badge-type">{anime.type}</span>
-              {anime.year && <span className="badge badge-source">{anime.season} {anime.year}</span>}
-              <span className="badge badge-source">{anime.status}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              {anime.score && <span className="badge badge-score">⭐ {anime.score}</span>}
+              {anime.type && <span className="badge badge-type">{anime.type}</span>}
+              {anime.year && <span className="badge badge-source">{anime.season ? `${anime.season} ` : ''}{anime.year}</span>}
+              {anime.status && <span className="badge badge-source">{anime.status}</span>}
               {anime.studio && <span className="badge badge-source">{anime.studio}</span>}
             </div>
           </div>
 
+          {/* Watch & Download Card */}
           <div className="details-scraper-card">
             <div className="scraper-header">
               <h3>Watch & Download</h3>
@@ -608,29 +692,56 @@ export default function Details() {
                 ) : (
                   <div className="episodes-grid-container">
                     <div className="ep-grid">
-                      {episodes.map(ep => (
-                        <div 
-                          key={ep.number} 
-                          className={`ep-row-card${selectedEpisodes.has(ep.number) ? ' selected' : ''}`}
-                        >
-                          <div className="ep-row-info" onClick={() => toggleEp(ep.number)}>
-                            <span className="ep-num-circle">{ep.number}</span>
-                            <span className="ep-row-title" title={ep.title}>{ep.title}</span>
-                          </div>
-                          
-                          <button 
-                            className="ep-row-play-btn"
-                            disabled={watchingEp !== null}
-                            onClick={() => handleWatch(ep.number)}
+                      {episodes.map(ep => {
+                        const progressMap = JSON.parse(localStorage.getItem('kamiwatch_episode_progress') || '{}')
+                        const key1 = `${anime?.id}:${ep.number}`
+                        const key2 = `${id}:${ep.number}`
+                        const key3 = Object.keys(progressMap).find(k => k.endsWith(`:${ep.number}`) && (k.includes(`${anime?.id}`) || k.includes(`${id}`)))
+                        const prog = progressMap[key1] || progressMap[key2] || (key3 ? progressMap[key3] : null)
+                        const percent = prog?.progressPercent || 0
+
+                        return (
+                          <div 
+                            key={ep.number} 
+                            className={`ep-row-card${selectedEpisodes.has(ep.number) ? ' selected' : ''}`}
+                            style={{ position: 'relative', overflow: 'hidden' }}
                           >
-                            {watchingEp === ep.number ? (
-                              <span className="spinner small" />
-                            ) : (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                            <div className="ep-row-info" onClick={() => toggleEp(ep.number)}>
+                              <span className="ep-num-circle">{ep.number}</span>
+                              <span className="ep-row-title" title={ep.title}>{ep.title}</span>
+                              {percent > 85 ? (
+                                <span style={{ fontSize: 10, color: '#10b981', fontWeight: 700, marginLeft: 6 }}>✓ Watched</span>
+                              ) : percent > 0 ? (
+                                <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 700, marginLeft: 6 }}>{Math.round(percent)}%</span>
+                              ) : null}
+                            </div>
+                            
+                            <button 
+                              className="ep-row-play-btn"
+                              disabled={watchingEp !== null}
+                              onClick={() => handleWatch(ep.number)}
+                            >
+                              {watchingEp === ep.number ? (
+                                <span className="spinner small" />
+                              ) : (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                              )}
+                            </button>
+
+                            {percent > 0 && (
+                              <div style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                width: `${Math.min(100, Math.max(0, percent))}%`,
+                                height: 3,
+                                background: percent > 85 ? '#10b981' : 'var(--accent, #6366f1)',
+                                transition: 'width 0.3s ease'
+                              }} />
                             )}
-                          </button>
-                        </div>
-                      ))}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -704,42 +815,49 @@ export default function Details() {
               </div>
             )}
 
-            {anime.characters && anime.characters.length > 0 && (
-              <div style={{ marginTop: 20, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 20 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  👥 Main Characters
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(95px, 1fr))', gap: 10 }}>
+            {/* Characters from Jikan API */}
+            {(charsLoading || characters.length > 0) && (
+              <div style={{ marginTop: 20, background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: 20 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 3, height: 16, background: 'var(--gradient-accent)', borderRadius: 2, display: 'block' }} />
+                  Characters
+                </div>
+                <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
+                  {charsLoading
+                    ? <SkeletonCard variant="character" count={8} />
+                    : characters.map(char => (
+                      <div key={char.id} style={{ flexShrink: 0, width: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
+                        <div style={{ width: 68, height: 68, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(124,58,237,0.3)', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
+                          <img src={char.image} alt={char.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{char.name}</span>
+                        {char.role && <span style={{ fontSize: 10, color: 'var(--accent-light)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{char.role}</span>}
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            )}
+
+            {/* From existing anime.characters fallback */}
+            {!charsLoading && characters.length === 0 && anime.characters && anime.characters.length > 0 && (
+              <div style={{ marginTop: 20, background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: 20 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 3, height: 16, background: 'var(--gradient-accent)', borderRadius: 2, display: 'block' }} /> Characters
+                </div>
+                <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
                   {anime.characters.map(char => (
-                    <div 
-                      key={char.id} 
-                      style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'center', 
-                        textAlign: 'center', 
-                        background: 'rgba(255,255,255,0.02)', 
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius)', 
-                        padding: '10px 6px',
-                        transition: 'transform var(--transition)'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
-                      <img 
-                        src={char.image} 
-                        alt={char.name} 
-                        style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-hover)', marginBottom: 6 }} 
-                      />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: 26, lineHeight: '13px' }}>
-                        {char.name}
-                      </span>
+                    <div key={char.id} style={{ flexShrink: 0, width: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
+                      <div style={{ width: 68, height: 68, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(124,58,237,0.3)' }}>
+                        <img src={char.image} alt={char.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', lineHeight: 1.3 }}>{char.name}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
+
           </div>
         </div>
 

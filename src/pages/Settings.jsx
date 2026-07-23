@@ -1,9 +1,13 @@
 import React, { useState, useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../App'
 import pkg from '../../package.json'
 
+const API = 'http://localhost:8642'
+
 export default function Settings() {
   const { settings, saveSettings } = useContext(AppContext)
+  const navigate = useNavigate()
   const [local, setLocal] = useState(settings)
   const [updateStatus, setUpdateStatus] = useState('')
 
@@ -273,6 +277,24 @@ export default function Settings() {
                 Check for Updates
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* Extensions */}
+        <section className="settings-section">
+          <h2 className="settings-section-title">Extensions</h2>
+          <div className="settings-row">
+            <div>
+              <label className="settings-label">Community Extensions</label>
+              <p className="settings-desc">Install community-built scrapers to add new anime and manga sources.</p>
+            </div>
+            <button
+              className="btn btn-secondary"
+              onClick={() => navigate('/extensions')}
+              style={{ flexShrink: 0 }}
+            >
+              🧩 Manage Extensions
+            </button>
           </div>
         </section>
 

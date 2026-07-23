@@ -129,6 +129,15 @@ export default function Manga() {
     return () => clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    const s = location.state?.search
+    if (s) {
+      setQuery(s)
+      setSource('mangakakalot')
+      handleSearch(null, s, 'mangakakalot')
+    }
+  }, [location.state])
+
   const handleSearch = async (e, forceQuery, forceSource, page = 1) => {
     e?.preventDefault()
     const q = forceQuery || query

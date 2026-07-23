@@ -12,6 +12,7 @@ import Settings from './pages/Settings'
 import Manga from './pages/Manga'
 import MangaDetails from './pages/MangaDetails'
 import MangaReader from './pages/MangaReader'
+import Extensions from './pages/Extensions'
 import EpisodeModal from './components/EpisodeModal'
 import PlayerModal from './components/PlayerModal'
 import UpdateBanner from './components/UpdateBanner'
@@ -130,6 +131,7 @@ export default function App() {
               <Route path="/manga/:id" element={<MangaDetails />} />
               <Route path="/manga/:id/read/:chapterId" element={<MangaReader />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/extensions" element={<Extensions />} />
             </Routes>
           </main>
         </div>

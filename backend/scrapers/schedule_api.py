@@ -118,9 +118,13 @@ async def get_timetables(weeksAfter: int = 0):
                 time_str = time_el.text.strip() if time_el else ""
                 air_type = air_type_el.text.strip() if air_type_el else ""
 
-                img = img_el.get("data-src") or img_el.get("src") if img_el else ""
-                if img == "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=":
-                    img = img_el.get("data-src") or ""
+                img = (img_el.get("data-src") or img_el.get("data-lazy-src") or img_el.get("src") or "") if img_el else ""
+                if "base64" in img or not img:
+                    img = (img_el.get("data-src") or img_el.get("data-lazy-src") or "") if img_el else ""
+                if img.startswith("//"):
+                    img = "https:" + img
+                elif img.startswith("/"):
+                    img = "https://animeschedule.net" + img
 
                 episode_number = None
                 if ep:

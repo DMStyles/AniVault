@@ -23,4 +23,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Notifications
   sendNotification: (data) => ipcRenderer.invoke('send-notification', data),
+
+  // Player controls
+  seekPlayer: (seconds) => ipcRenderer.invoke('player-seek', seconds),
+  getPlayerTime: () => ipcRenderer.invoke('player-get-time'),
+
+  // Extension system
+  extensions: {
+    list: () => ipcRenderer.invoke('extension:list'),
+    install: (data) => ipcRenderer.invoke('extension:install', data),
+    remove: (id) => ipcRenderer.invoke('extension:remove', { id }),
+    call: (id, fn, args) => ipcRenderer.invoke('extension:call', { id, fn, args }),
+  },
 });

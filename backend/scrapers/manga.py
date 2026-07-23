@@ -469,24 +469,22 @@ async def proxy_image(url: str):
     """Proxy image requests to bypass Referer/CORS restrictions across all sources."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://mangadex.org/",
     }
     if "webtoons.com" in url:
         headers["Referer"] = "https://www.webtoons.com/"
-    elif "mangadex" in url:
-        headers["Referer"] = "https://mangadex.org/"
     elif "mangakakalot" in url or "manganelo" in url:
         headers["Referer"] = "https://mangakakalot.com/"
     elif "mangaddict" in url:
         headers["Referer"] = "https://www.mangaddict.com/"
+    elif "mangadex" in url or "mangadex.network" in url:
+        headers["Referer"] = "https://mangadex.org/"
     
-    client = httpx.AsyncClient(timeout=20, follow_redirects=True)
-    
-    async def generate():
-        try:
-            async with client.stream("GET", url, headers=headers) as response:
-                async for chunk in response.aiter_bytes():
-                    yield chunk
-        except Exception as e:
-            print(f"[Proxy error] {e}")
-                
-    return StreamingResponse(generate(), media_type="image/jpeg")
+    try:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            r = await client.get(url, headers=headers)
+            content_type = r.headers.get("content-type", "image/jpeg")
+            return StreamingResponse(iter([r.content]), media_type=content_type)
+    except Exception as e:
+        print(f"[Proxy error] {e}")
+        return StreamingResponse(iter([]), media_type="image/jpeg")

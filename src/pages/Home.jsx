@@ -1,625 +1,531 @@
-import React, { useState, useEffect, useContext } from 'react'
+import React, { useState, useEffect, useContext, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../App'
+import AnimeCard from '../components/AnimeCard'
+import SkeletonCard from '../components/SkeletonCard'
 
 const API = 'http://localhost:8642'
 
 const HERO_SLIDES = [
   {
+    id: 21,
     title: 'One Piece',
-    synopsis: 'Gold Roger was known as the "Pirate King," the strongest and most infamous being to have sailed the Grand Line...',
-    image: 'https://image.tmdb.org/t/p/original/a6ptrTUH1c5OdWanjyYtAkOuYD0.jpg',
-    type: 'TV', episodes: '1000+', rating: 'PG-13',
+    synopsis: 'Monkey D. Luffy sets off on an adventure with his pirate crew to find the greatest treasure known as the "One Piece" and become the Pirate King.',
+    backdrop: 'https://img1.ak.crunchyroll.com/i/spire1-tmb/bfd6034d4b5af2c8cde78c8a4abf8c0c1380605476_full.jpg',
+    genre: ['Action', 'Adventure', 'Fantasy'],
+    score: '8.7',
+    type: 'TV',
   },
   {
-    title: 'Mushoku Tensei: Season 3',
-    synopsis: 'The third season of the isekai reincarnation epic — Rudeus faces his greatest challenges yet.',
-    image: 'https://cdn.anipixcdn.co/background/f75f370e170606d0_1783551063.webp',
-    type: 'TV', episodes: '12', rating: 'R',
+    id: 2,
+    title: 'Attack on Titan',
+    synopsis: 'In a world where humanity lives behind walls to protect themselves from man-eating giants called Titans, young Eren Yeager vows to destroy them all.',
+    backdrop: 'https://wallpapercave.com/wp/wp7564053.jpg',
+    genre: ['Action', 'Drama', 'Dark Fantasy'],
+    score: '9.0',
+    type: 'TV',
   },
   {
-    title: 'That Time I Got Reincarnated as a Slime S4',
-    synopsis: "Demon Lord Rimuru's dream of creating an alliance between humans and monsters takes a step closer...",
-    image: 'https://cdn.anipixcdn.co/background/14c2f4ab3ad95f50_1778862809.jpg',
-    type: 'TV', episodes: '24', rating: 'PG-13',
+    id: 38000,
+    title: 'Demon Slayer',
+    synopsis: "Tanjiro Kamado's peaceful life is shattered when a demon slaughters his family. He trains to become a Demon Slayer to avenge them and cure his sister Nezuko.",
+    backdrop: 'https://wallpapercave.com/wp/wp10007742.jpg',
+    genre: ['Action', 'Supernatural', 'Historical'],
+    score: '8.6',
+    type: 'TV',
   },
 ]
 
-const GENRE_TAGS = ['Action','Adventure','Comedy','Drama','Ecchi','Fantasy','Mystery','Psychological','Romance','Sci-Fi','Slice of Life','Supernatural','Thriller']
-
-const TRENDING = [
-  { title: 'Solo Leveling', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx151807-it355ZgzquUd.png', ep: 12, type: 'TV' },
-  { title: 'Demon Slayer', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx101922-WBsBl0ClmgYL.jpg', ep: 26, type: 'TV' },
-  { title: 'Grand Blue', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx100922-uxEhaCsqMMp3.png', ep: 12, type: 'TV' },
-  { title: 'One Piece', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx21-ELSYx3yMPcKM.jpg', ep: 1000, type: 'TV' },
-  { title: 'Jujutsu Kaisen', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx113415-LHBAeoZDIsnF.jpg', ep: 24, type: 'TV' },
-  { title: 'Attack on Titan', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx16498-buvcRTBx4NSm.jpg', ep: 25, type: 'TV' },
-  { title: 'Chainsaw Man', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx127230-DdP4vAdssLoz.png', ep: 12, type: 'TV' },
-  { title: 'Frieren: Beyond Journey\'s End', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx170068-ijY3tCP8KoWP.jpg', ep: 28, type: 'TV' },
-  { title: 'Spy x Family', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx140960-Kb6R5nYQfjmP.jpg', ep: 25, type: 'TV' },
-  { title: 'Oshi no Ko', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx150672-WqmmwZ4nMzAy.png', ep: 11, type: 'TV' },
-  { title: 'Bocchi the Rock!', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx130003-HTDmeL4RGeJ4.png', ep: 12, type: 'TV' },
-  { title: 'My Hero Academia', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx21459-nYh85uj2Fuwr.jpg', ep: 13, type: 'TV' },
-  { title: 'Bleach: Thousand-Year Blood War', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx116674-p3zK4PUX2Aag.jpg', ep: 13, type: 'TV' },
-  { title: 'Naruto Shippuden', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1735-kGfVm0YqCPcu.png', ep: 500, type: 'TV' },
-  { title: 'Hunter x Hunter', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx136-gj0bbCpDNrKG.jpg', ep: 148, type: 'TV' },
-  { title: 'Death Note', thumbnail: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1535-kUgkcrfOrkUM.jpg', ep: 37, type: 'TV' },
+const GENRE_CARDS = [
+  { name: 'Action', bg: 'linear-gradient(135deg, #7c3aed 0%, #ef4444 100%)', emoji: '⚔️' },
+  { name: 'Fantasy', bg: 'linear-gradient(135deg, #5b21b6 0%, #06b6d4 100%)', emoji: '🔮' },
+  { name: 'Adventure', bg: 'linear-gradient(135deg, #047857 0%, #06b6d4 100%)', emoji: '🗺️' },
+  { name: 'Comedy', bg: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)', emoji: '😄' },
+  { name: 'Sci-Fi', bg: 'linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%)', emoji: '🚀' },
+  { name: 'Romance', bg: 'linear-gradient(135deg, #be185d 0%, #f472b6 100%)', emoji: '💕' },
+  { name: 'Mystery', bg: 'linear-gradient(135deg, #1e3a5f 0%, #5b21b6 100%)', emoji: '🔍' },
+  { name: 'Horror', bg: 'linear-gradient(135deg, #450a0a 0%, #7c3aed 100%)', emoji: '👻' },
 ]
 
-export default function Home() {
-  const [heroIdx, setHeroIdx] = useState(0)
-  const [activeGenre, setActiveGenre] = useState(null)
-  const [follows, setFollows] = useState([])
-  const [airingEpisodes, setAiringEpisodes] = useState([])
-  const [latestEpisodes, setLatestEpisodes] = useState([])
-  const [upcomingAnime, setUpcomingAnime] = useState([])
-  const [history, setHistory] = useState([])
-  const [mangaHistory, setMangaHistory] = useState([])
-  const [mangaTrending, setMangaTrending] = useState([])
-  const [mangaNewReleases, setMangaNewReleases] = useState([])
-  const [mangaPopular, setMangaPopular] = useState([])
-  const [recommendations, setRecommendations] = useState([])
-  const [heroSlides, setHeroSlides] = useState(HERO_SLIDES)
+const GENRE_TAGS = ['All', 'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mystery', 'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life', 'Supernatural']
+
+function HeroSection({ slides }) {
+  const [idx, setIdx] = useState(0)
+  const [fading, setFading] = useState(false)
   const navigate = useNavigate()
   const { setEpisodeModal } = useContext(AppContext)
+  const timerRef = useRef(null)
+
+  const goTo = (newIdx) => {
+    if (newIdx === idx) return
+    setFading(true)
+    setTimeout(() => {
+      setIdx(newIdx)
+      setFading(false)
+    }, 350)
+  }
 
   useEffect(() => {
-    fetchFollows()
-    fetchAiring()
-    fetchHeroSlides()
-    fetchLatestEpisodes()
-    fetchUpcomingAnime()
-    loadHistory()
-    fetchRecommendations()
-    fetchMangaRows()
-  }, [])
+    if (slides.length < 2) return
+    timerRef.current = setInterval(() => {
+      setFading(true)
+      setTimeout(() => {
+        setIdx(prev => (prev + 1) % slides.length)
+        setFading(false)
+      }, 350)
+    }, 6000)
+    return () => clearInterval(timerRef.current)
+  }, [slides.length])
 
-  useEffect(() => {
-    const timer = setInterval(() => setHeroIdx(i => (i + 1) % heroSlides.length), 5000)
-    return () => clearInterval(timer)
-  }, [heroSlides.length])
-
-  const fetchFollows = async () => {
-    try {
-      const res = await fetch(`${API}/library/follows`)
-      const data = await res.json()
-      setFollows(data)
-    } catch {}
-  }
-
-  const fetchAiring = async () => {
-    try {
-      const res = await fetch(`${API}/jikan/airing?limit=20`)
-      const data = await res.json()
-      setAiringEpisodes(data.results || [])
-    } catch {}
-  }
-
-  const loadHistory = () => {
-    try {
-      const historyStr = localStorage.getItem('kamiwatch-history') || '[]'
-      setHistory(JSON.parse(historyStr))
-    } catch {
-      setHistory([])
-    }
-    try {
-      const mh = localStorage.getItem('kamiwatch-manga-history') || '[]'
-      setMangaHistory(JSON.parse(mh))
-    } catch {
-      setMangaHistory([])
-    }
-  }
-
-  const fetchRecommendations = async () => {
-    try {
-      const historyStr = localStorage.getItem('kamiwatch-history') || '[]'
-      const historyItems = JSON.parse(historyStr)
-      const ids = historyItems
-        .map(h => h.animeId)
-        .filter(id => id && id !== 0 && id !== '0')
-        .slice(0, 4)
-        .join(',')
-      
-      const res = await fetch(`${API}/jikan/recommendations?ids=${ids}`)
-      const data = await res.json()
-      setRecommendations(data.results || [])
-    } catch {}
-  }
-
-  const fetchLatestEpisodes = async () => {
-    try {
-      const res = await fetch(`${API}/anikoto/latest`)
-      const data = await res.json()
-      setLatestEpisodes(data.results || [])
-    } catch {}
-  }
-
-  const fetchUpcomingAnime = async () => {
-    try {
-      const res = await fetch(`${API}/anikoto/upcoming`)
-      const data = await res.json()
-      setUpcomingAnime(data.results || [])
-    } catch {}
-  }
-
-  const fetchMangaRows = async () => {
-    try {
-      const [trendingRes, newRes, popularRes] = await Promise.all([
-        fetch(`${API}/manga/trending`),
-        fetch(`${API}/manga/new-releases`),
-        fetch(`${API}/manga/popular-new`),
-      ])
-      const [trendingData, newData, popularData] = await Promise.all([
-        trendingRes.json(),
-        newRes.json(),
-        popularRes.json(),
-      ])
-      setMangaTrending(trendingData.results || [])
-      setMangaNewReleases(newData.results || [])
-      setMangaPopular(popularData.results || [])
-    } catch {}
-  }
-
-  const fetchHeroSlides = async () => {
-    try {
-      const res = await fetch(`${API}/jikan/hero-slides`)
-      const data = await res.json()
-      if (data.slides && data.slides.length >= 3) {
-        setHeroSlides(data.slides)
-        setHeroIdx(0)
-      }
-    } catch {}
-  }
-
-  const hero = heroSlides[heroIdx] || HERO_SLIDES[0]
+  const slide = slides[idx]
+  if (!slide) return null
 
   return (
-    <div className="home-page">
-      {/* Hero Banner */}
-      <div className="hero" style={{ backgroundImage: `url(${hero.image})` }}>
-        <div className="hero-overlay" />
-        <div className="hero-content">
-          <div className="hero-meta">
-            <span className="badge badge-type">{hero.type}</span>
-            <span className="badge badge-source">{hero.episodes} Episodes</span>
-            <span className="badge badge-source">{hero.rating}</span>
-          </div>
-          <h1 className="hero-title">{hero.title}</h1>
-          <p className="hero-synopsis">{hero.synopsis}</p>
-          <div className="hero-actions">
-            <button
-              className="btn btn-primary hero-btn"
-              onClick={() => navigate('/anime/0', { state: { searchQuery: hero.title } })}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              Watch Now
-            </button>
-            <button
-              className="btn btn-secondary hero-btn"
-              onClick={() => navigate('/anime/0', { state: { searchQuery: hero.title } })}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Details & Episodes
-            </button>
-          </div>
+    <div style={{ position: 'relative', height: '58vh', minHeight: 380, maxHeight: 560, overflow: 'hidden', marginBottom: 0 }}>
+      {/* Backdrop */}
+      <div
+        style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${slide.backdrop})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          transition: 'opacity 0.4s ease',
+          opacity: fading ? 0 : 1,
+          transform: 'scale(1.04)',
+        }}
+      />
+
+      {/* Overlays */}
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--gradient-hero-left)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--gradient-hero-bottom)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(7,7,15,0.2)' }} />
+
+      {/* Content */}
+      <div
+        style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+          padding: '0 48px 40px',
+          opacity: fading ? 0 : 1,
+          transform: fading ? 'translateY(8px)' : 'translateY(0)',
+          transition: 'opacity 0.4s ease, transform 0.4s ease',
+          maxWidth: 640,
+        }}
+      >
+        {/* Genre tags */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          {(slide.genre || []).map(g => (
+            <span key={g} style={{
+              padding: '4px 12px', borderRadius: 99,
+              background: 'rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(8px)',
+              fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.8)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              letterSpacing: '0.03em',
+            }}>
+              {g}
+            </span>
+          ))}
+          {slide.score && (
+            <span style={{
+              padding: '4px 12px', borderRadius: 99,
+              background: 'rgba(245,158,11,0.15)',
+              backdropFilter: 'blur(8px)',
+              fontSize: 11, fontWeight: 700, color: '#fbbf24',
+              border: '1px solid rgba(245,158,11,0.3)',
+            }}>
+              ★ {slide.score}
+            </span>
+          )}
         </div>
-        <div className="hero-dots">
-          {heroSlides.map((_, i) => (
+
+        {/* Title */}
+        <div style={{
+          fontSize: 'clamp(2rem, 4vw, 3rem)',
+          fontWeight: 900,
+          letterSpacing: '-0.03em',
+          lineHeight: 1.05,
+          color: '#fff',
+          marginBottom: 12,
+          textShadow: '0 2px 20px rgba(0,0,0,0.5)',
+        }}>
+          {slide.title}
+        </div>
+
+        {/* Synopsis */}
+        <div style={{
+          fontSize: 14,
+          lineHeight: 1.65,
+          color: 'rgba(255,255,255,0.7)',
+          marginBottom: 24,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}>
+          {slide.synopsis}
+        </div>
+
+        {/* CTA Buttons */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            className="btn btn-primary"
+            style={{ fontSize: 14, padding: '10px 28px', borderRadius: 10 }}
+            onClick={() => {
+              if (slide.id) navigate(`/anime/${slide.id}`)
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Watch Now
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ fontSize: 14, padding: '10px 24px', borderRadius: 10 }}
+            onClick={() => { if (slide.id) navigate(`/anime/${slide.id}`) }}
+          >
+            More Info
+          </button>
+        </div>
+      </div>
+
+      {/* Slide dots */}
+      {slides.length > 1 && (
+        <div style={{
+          position: 'absolute', bottom: 32, right: 40,
+          display: 'flex', gap: 6, alignItems: 'center',
+        }}>
+          {slides.map((_, i) => (
             <button
               key={i}
-              className={`hero-dot${i === heroIdx ? ' active' : ''}`}
-              onClick={() => setHeroIdx(i)}
+              onClick={() => goTo(i)}
+              style={{
+                width: i === idx ? 22 : 7,
+                height: 7,
+                borderRadius: 99,
+                background: i === idx ? 'white' : 'rgba(255,255,255,0.3)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                padding: 0,
+              }}
             />
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+function Row({ title, items = [], loading = false, onSeeAll, renderCard, skeletonCount = 8 }) {
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div className="section-header">
+        <span className="section-title">{title}</span>
+        {onSeeAll && <span className="section-link" onClick={onSeeAll}>See All →</span>}
+      </div>
+      <div className="horizontal-scroll">
+        {loading
+          ? <SkeletonCard count={skeletonCount} />
+          : items.map((item, i) => renderCard(item, i))
+        }
+      </div>
+    </div>
+  )
+}
+
+export default function Home() {
+  const navigate = useNavigate()
+  const { setEpisodeModal } = useContext(AppContext)
+  const [heroSlides, setHeroSlides] = useState(HERO_SLIDES)
+  const [heroLoading, setHeroLoading] = useState(true)
+  const [activeGenre, setActiveGenre] = useState('All')
+  const [follows, setFollows] = useState([])
+  const [airingEpisodes, setAiringEpisodes] = useState([])
+  const [airingLoading, setAiringLoading] = useState(true)
+  const [latestEpisodes, setLatestEpisodes] = useState([])
+  const [latestLoading, setLatestLoading] = useState(true)
+  const [upcomingAnime, setUpcomingAnime] = useState([])
+  const [upcomingLoading, setUpcomingLoading] = useState(true)
+  const [recommendations, setRecommendations] = useState([])
+  const [mangaTrending, setMangaTrending] = useState([])
+  const [mangaNew, setMangaNew] = useState([])
+  const [mangaPopular, setMangaPopular] = useState([])
+  const [history, setHistory] = useState([])
+  const [mangaHistory, setMangaHistory] = useState([])
+
+  useEffect(() => {
+    // Load watch history
+    try {
+      const h = JSON.parse(localStorage.getItem('kamiwatch-history') || '[]')
+      setHistory(h.slice(0, 12))
+    } catch {}
+    try {
+      const mh = JSON.parse(localStorage.getItem('kamiwatch-manga-history') || '[]')
+      setMangaHistory(mh.slice(0, 8))
+    } catch {}
+
+    // Fetch hero slides
+    fetch(`${API}/jikan/hero-slides`).then(r => r.json()).then(data => {
+      if (Array.isArray(data) && data.length >= 3) setHeroSlides(data)
+    }).catch(() => {}).finally(() => setHeroLoading(false))
+
+    // Fetch follows
+    fetch(`${API}/library/follows`).then(r => r.json()).then(d => setFollows(d || [])).catch(() => {})
+
+    // Airing
+    fetch(`${API}/jikan/airing?limit=20`).then(r => r.json()).then(d => {
+      setAiringEpisodes((d.data || d || []).slice(0, 20))
+      setAiringLoading(false)
+    }).catch(() => setAiringLoading(false))
+
+    // Latest episodes
+    fetch(`${API}/anikoto/latest`).then(r => r.json()).then(d => {
+      setLatestEpisodes((d || []).slice(0, 20))
+      setLatestLoading(false)
+    }).catch(() => setLatestLoading(false))
+
+    // Upcoming
+    fetch(`${API}/anikoto/upcoming`).then(r => r.json()).then(d => {
+      setUpcomingAnime((d || []).slice(0, 20))
+      setUpcomingLoading(false)
+    }).catch(() => setUpcomingLoading(false))
+
+    // Manga
+    fetch(`${API}/manga/trending`).then(r => r.json()).then(d => setMangaTrending((d || []).slice(0, 12))).catch(() => {})
+    fetch(`${API}/manga/new-releases`).then(r => r.json()).then(d => setMangaNew((d || []).slice(0, 12))).catch(() => {})
+    fetch(`${API}/manga/popular-new`).then(r => r.json()).then(d => setMangaPopular((d || []).slice(0, 12))).catch(() => {})
+
+    // Recommendations
+    try {
+      const watchHistory = JSON.parse(localStorage.getItem('kamiwatch-history') || '[]')
+      const malIds = watchHistory.slice(0, 5).map(h => h.malId).filter(Boolean)
+      if (malIds.length > 0) {
+        fetch(`${API}/jikan/recommendations?ids=${malIds.join(',')}`)
+          .then(r => r.json())
+          .then(d => setRecommendations((d || []).slice(0, 16)))
+          .catch(() => {})
+      }
+    } catch {}
+  }, [])
+
+  // Progress map
+  const progressMap = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('kamiwatch_episode_progress') || '{}')
+    } catch { return {} }
+  })()
+
+  const getProgress = (anime) => {
+    const id = anime.malId || anime.id
+    const pKey = Object.keys(progressMap).find(k =>
+      k === String(id) || k.startsWith(`${id}_`) || progressMap[k]?.animeId === id
+    )
+    if (!pKey) return 0
+    const p = progressMap[pKey]
+    if (typeof p === 'number') return p
+    if (p?.percent) return p.percent
+    return 0
+  }
+
+  return (
+    <div style={{ minHeight: '100%', paddingBottom: 48 }}>
+      {/* === HERO === */}
+      <HeroSection slides={heroSlides} />
+
+      {/* === GENRE BAR === */}
+      <div style={{ padding: '20px 0 8px', marginBottom: 4 }}>
+        <div style={{
+          display: 'flex', gap: 8, overflowX: 'auto', padding: '0 24px',
+          scrollbarWidth: 'none', msOverflowStyle: 'none'
+        }}>
+          {GENRE_TAGS.map(g => (
+            <button
+              key={g}
+              onClick={() => {
+                setActiveGenre(g)
+                if (g !== 'All') navigate('/search', { state: { genre: g } })
+              }}
+              style={{
+                padding: '6px 16px', borderRadius: 99, border: 'none',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease',
+                background: activeGenre === g ? 'var(--accent)' : 'rgba(255,255,255,0.06)',
+                color: activeGenre === g ? '#fff' : 'var(--text-secondary)',
+                boxShadow: activeGenre === g ? '0 0 14px var(--accent-glow)' : 'none',
+              }}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Genre Tags */}
-      <div className="genre-bar">
-        {GENRE_TAGS.map(g => (
-          <button
-            key={g}
-            className={`genre-tag${activeGenre === g ? ' active' : ''}`}
-            onClick={() => { setActiveGenre(g === activeGenre ? null : g); navigate('/search', { state: { genre: g } }) }}
-          >
-            {g}
-          </button>
-        ))}
-      </div>
-
-      {/* Continue Watching */}
+      {/* === CONTINUE WATCHING === */}
       {history.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">🕒 Continue Watching</span>
-            <button className="btn btn-ghost" style={{fontSize:12, color:'var(--text-muted)'}} onClick={() => { localStorage.removeItem('kamiwatch-history'); setHistory([]); }}>Clear All</button>
-          </div>
-          <div className="horizontal-scroll">
-            {history.map((item, i) => (
-              <div
-                key={i}
-                className="anime-card"
-                onClick={() => navigate(item.animeId && item.animeId !== 0 && item.animeId !== '0' ? `/anime/${item.animeId}` : '/anime/0', { state: { searchQuery: item.animeTitle } })}
-              >
-                <div className="anime-card-img">
-                  <img src={item.thumbnail} alt={item.animeTitle} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                  </div>
-                  <span className="anime-card-badge" style={{background:'var(--accent)'}}>
-                    Ep {item.episodeNumber}
-                  </span>
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.animeTitle}</p>
-                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>Last watched: {item.episodeTitle}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <Row
+          title="Continue Watching"
+          items={history}
+          renderCard={(item, i) => (
+            <AnimeCard
+              key={i}
+              anime={item}
+              progress={getProgress(item)}
+              wide
+            />
+          )}
+        />
       )}
 
-      {/* Continue Reading Manga */}
+      {/* === CONTINUE READING === */}
       {mangaHistory.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">📖 Continue Reading</span>
-            <button className="btn btn-ghost" style={{fontSize:12, color:'var(--text-muted)'}} onClick={() => { localStorage.removeItem('kamiwatch-manga-history'); setMangaHistory([]); }}>Clear All</button>
-          </div>
-          <div className="horizontal-scroll">
-            {mangaHistory.map((item, i) => (
-              <div
-                key={i}
-                className="anime-card"
-                onClick={() => navigate(`/manga/${encodeURIComponent(item.mangaId)}`, { state: { manga: item } })}
-              >
-                <div className="anime-card-img">
-                  <img src={item.cover} alt={item.mangaTitle} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-                    </button>
-                  </div>
-                  <span className="anime-card-badge" style={{background:'var(--manga-primary,#d97706)',color:'#000'}}>
-                    Ch {item.chapterNumber}
-                  </span>
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.mangaTitle}</p>
-                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>Last read: {item.chapterTitle}</p>
-                </div>
+        <Row
+          title="Continue Reading"
+          items={mangaHistory}
+          renderCard={(item, i) => (
+            <div
+              key={i}
+              onClick={() => navigate(`/manga/${item.id}`)}
+              style={{ flexShrink: 0, width: 130, cursor: 'pointer' }}
+            >
+              <div style={{ width: 130, height: 186, borderRadius: 10, overflow: 'hidden', marginBottom: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+                <img src={item.cover} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
-            ))}
-          </div>
-        </section>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                {item.title}
+              </div>
+            </div>
+          )}
+        />
       )}
 
-      {/* My Follow List */}
+      {/* === MY LIST === */}
       {follows.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">💖 My Follow List</span>
-          </div>
-          <div className="horizontal-scroll">
-            {follows.map((item, i) => (
-              <div
-                key={i}
-                className="anime-card"
-                onClick={() => navigate('/anime/0', { state: { searchQuery: item.title } })}
-              >
-                <div className="anime-card-img">
-                  <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                  </div>
-                  <span className="anime-card-badge" style={{textTransform:'capitalize'}}>{item.source}</span>
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.title}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <Row
+          title="My List"
+          items={follows}
+          renderCard={(item, i) => <AnimeCard key={i} anime={item} />}
+        />
       )}
 
-      {/* Latest Episodes (AniKoto Scraper) */}
-      {latestEpisodes.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">📺 Latest Episodes</span>
-            <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { showLatest: true } })}>See all →</button>
-          </div>
-          <div className="horizontal-scroll">
-            {latestEpisodes.map((item, i) => (
-              <div
-                key={i}
-                className="anime-card"
-                onClick={() => navigate('/anime/0', { state: { searchQuery: item.title } })}
-              >
-                <div className="anime-card-img">
-                  <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                  </div>
-                  {(() => {
-                    const subText = item.sub_episodes && item.sub_episodes !== '0' && item.sub_episodes !== '?' ? `Sub ${item.sub_episodes}` : '';
-                    const dubText = item.dub_episodes && item.dub_episodes !== '0' && item.dub_episodes !== '?' ? `Dub ${item.dub_episodes}` : '';
-                    const jointText = subText && dubText ? `${subText} | ${dubText}` : (subText || dubText);
-                    
-                    if (!jointText) return null;
-                    return (
-                      <span className="anime-card-badge" style={{background:'var(--accent)'}}>
-                        {jointText}
-                      </span>
-                    );
-                  })()}
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.title}</p>
-                  <p className="anime-card-ep" style={{color:'var(--accent-light)', fontSize:12}}>{item.type}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* === LATEST EPISODES === */}
+      <Row
+        title="Latest Episodes"
+        items={latestEpisodes}
+        loading={latestLoading}
+        skeletonCount={10}
+        onSeeAll={() => navigate('/search')}
+        renderCard={(item, i) => (
+          <AnimeCard
+            key={i}
+            anime={item}
+            badge={item.episode ? `EP ${item.episode}` : undefined}
+            onClick={() => setEpisodeModal({ title: item.title, url: item.url, thumbnail: item.thumbnail || item.cover, source: item.source || 'anikoto' })}
+          />
+        )}
+      />
 
-      {/* Upcoming Anime (AniKoto Scraper) */}
+      {/* === AIRING THIS SEASON === */}
+      <Row
+        title="Airing This Season"
+        items={airingEpisodes.map(a => ({
+          id: a.mal_id,
+          malId: a.mal_id,
+          title: a.title,
+          cover: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url,
+          score: a.score,
+          type: a.type,
+          episodes: a.episodes,
+        }))}
+        loading={airingLoading}
+        skeletonCount={10}
+        renderCard={(item, i) => <AnimeCard key={i} anime={item} />}
+      />
+
+      {/* === UPCOMING ANIME === */}
       {upcomingAnime.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">📅 Upcoming Anime</span>
-          </div>
-          <div className="horizontal-scroll">
-            {upcomingAnime.map((item, i) => (
-              <div
-                key={i}
-                className="anime-card"
-                onClick={() => navigate('/anime/0', { state: { searchQuery: item.title } })}
-              >
-                <div className="anime-card-img">
-                  <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                  </div>
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.title}</p>
-                  <p className="anime-card-ep" style={{color:'var(--accent-light)', fontSize:12}}>{item.type}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <Row
+          title="Upcoming Anime"
+          items={upcomingAnime}
+          loading={upcomingLoading}
+          skeletonCount={8}
+          renderCard={(item, i) => <AnimeCard key={i} anime={item} badge="SOON" />}
+        />
       )}
 
-      {/* Recommended for You */}
+      {/* === RECOMMENDED FOR YOU === */}
       {recommendations.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">✨ Recommended for You</span>
-          </div>
-          <div className="horizontal-scroll">
-            {recommendations.map((item, i) => (
-              <div
-                key={i}
-                className="anime-card"
-                onClick={() => navigate(item.mal_id ? `/anime/${item.mal_id}` : '/anime/0', { state: { searchQuery: item.title } })}
-              >
-                <div className="anime-card-img">
-                  <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                  </div>
-                  {item.type && <span className="anime-card-badge">{item.type}</span>}
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.title}</p>
-                  <p className="anime-card-ep">{item.year ? `${item.year}` : ''}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <Row
+          title="Recommended for You"
+          items={recommendations}
+          renderCard={(item, i) => <AnimeCard key={i} anime={item} />}
+        />
       )}
 
-      {/* Trending Row */}
-      <section className="home-section">
-        <div className="section-header">
-          <span className="section-title">🔥 Trending Now</span>
-          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { tab: 'browse' } })}>See all →</button>
-        </div>
-        <div className="horizontal-scroll">
-          {TRENDING.map((item, i) => (
-            <div
-              key={i}
-              className="anime-card"
-              onClick={() => navigate('/anime/0', { state: { searchQuery: item.title } })}
-            >
-              <div className="anime-card-img">
-                <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                <div className="anime-card-overlay">
-                  <button className="card-play-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                  </button>
-                </div>
-                <span className="anime-card-badge">{item.type}</span>
-              </div>
-              <div className="anime-card-info">
-                <p className="anime-card-title">{item.title}</p>
-                <p className="anime-card-ep">Ep {item.ep}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Recently Released Anime - LIVE from Jikan */}
-      <section className="home-section">
-        <div className="section-header">
-          <span className="section-title">🕒 Airing This Season</span>
-          <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/search', { state: { showAiring: true } })}>See all →</button>
-        </div>
-        <div className="horizontal-scroll">
-          {(airingEpisodes.length > 0 ? airingEpisodes : Array(8).fill(null)).map((item, i) => (
-            <div
-              key={i}
-              className="anime-card"
-              onClick={() => item && navigate(item.mal_id ? `/anime/${item.mal_id}` : '/anime/0', { state: { searchQuery: item.title } })}
-            >
-              <div className="anime-card-img">
-                {item ? (
-                  <img src={item.thumbnail} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                ) : (
-                  <div style={{width:'100%',height:'100%',background:'var(--surface-2)',borderRadius:'var(--radius)'}} />
-                )}
-                {item && (
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                  </div>
-                )}
-                {item && <span className="anime-card-badge" style={{background:'var(--primary)'}}>AIRING</span>}
-              </div>
-              <div className="anime-card-info">
-                <p className="anime-card-title">{item ? item.title : '...'}</p>
-                <p className="anime-card-ep">{item ? `${item.type} · Ep ${item.ep}` : ''}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Manga — Trending Now */}
+      {/* === TRENDING MANGA === */}
       {mangaTrending.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">📚 Trending Manga</span>
-            <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/manga')}>See all →</button>
-          </div>
-          <div className="horizontal-scroll">
-            {mangaTrending.map((item, i) => (
-              <div key={i} className="anime-card" onClick={() => navigate(`/manga/${encodeURIComponent(item.id)}`, { state: { manga: item } })}>
-                <div className="anime-card-img">
-                  <img src={item.cover} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-                    </button>
-                  </div>
-                  <span className="anime-card-badge" style={{background:'var(--manga-primary,#d97706)',color:'#000',textTransform:'capitalize'}}>{item.status}</span>
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.title}</p>
-                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>{item.year || 'Manga'}</p>
-                </div>
+        <Row
+          title="Trending Manga"
+          items={mangaTrending}
+          renderCard={(item, i) => (
+            <div
+              key={i}
+              onClick={() => navigate(`/manga/${item.id}`)}
+              style={{ flexShrink: 0, width: 140, cursor: 'pointer' }}
+            >
+              <div style={{ width: 140, height: 200, borderRadius: 10, overflow: 'hidden', marginBottom: 8, border: '1px solid rgba(217,119,6,0.15)' }}>
+                <img src={item.cover} alt={item.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
-            ))}
-          </div>
-        </section>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                {item.title}
+              </div>
+            </div>
+          )}
+        />
       )}
 
-      {/* Manga — Popular New Updates */}
-      {mangaPopular.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">🔥 Recently Updated Manga</span>
-            <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/manga')}>See all →</button>
-          </div>
-          <div className="horizontal-scroll">
-            {mangaPopular.map((item, i) => (
-              <div key={i} className="anime-card" onClick={() => navigate(`/manga/${encodeURIComponent(item.id)}`, { state: { manga: item } })}>
-                <div className="anime-card-img">
-                  <img src={item.cover} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-                    </button>
-                  </div>
-                  <span className="anime-card-badge" style={{background:'#16a34a',color:'#fff'}}>UPDATED</span>
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.title}</p>
-                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>{item.year || 'Manga'}</p>
-                </div>
+      {/* === NEW MANGA RELEASES === */}
+      {mangaNew.length > 0 && (
+        <Row
+          title="New Manga Releases"
+          items={mangaNew}
+          renderCard={(item, i) => (
+            <div
+              key={i}
+              onClick={() => navigate(`/manga/${item.id}`)}
+              style={{ flexShrink: 0, width: 140, cursor: 'pointer' }}
+            >
+              <div style={{ width: 140, height: 200, borderRadius: 10, overflow: 'hidden', marginBottom: 8, border: '1px solid rgba(217,119,6,0.15)', position: 'relative' }}>
+                <img src={item.cover} alt={item.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', top: 6, left: 6, background: 'linear-gradient(135deg, #d97706, #f59e0b)', padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, color: '#fff' }}>NEW</div>
               </div>
-            ))}
-          </div>
-        </section>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                {item.title}
+              </div>
+            </div>
+          )}
+        />
       )}
 
-      {/* Manga — New Releases */}
-      {mangaNewReleases.length > 0 && (
-        <section className="home-section">
-          <div className="section-header">
-            <span className="section-title">✨ New Manga Releases</span>
-            <button className="btn btn-ghost" style={{fontSize:13}} onClick={() => navigate('/manga')}>See all →</button>
-          </div>
-          <div className="horizontal-scroll">
-            {mangaNewReleases.map((item, i) => (
-              <div key={i} className="anime-card" onClick={() => navigate(`/manga/${encodeURIComponent(item.id)}`, { state: { manga: item } })}>
-                <div className="anime-card-img">
-                  <img src={item.cover} alt={item.title} loading="lazy" onError={e => e.target.src = 'https://via.placeholder.com/200x280?text=No+Image'} />
-                  <div className="anime-card-overlay">
-                    <button className="card-play-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-                    </button>
-                  </div>
-                  <span className="anime-card-badge" style={{background:'#7c3aed',color:'#fff'}}>NEW</span>
-                </div>
-                <div className="anime-card-info">
-                  <p className="anime-card-title">{item.title}</p>
-                  <p className="anime-card-ep" style={{color:'var(--text-muted)'}}>{item.year || 'Manga'}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Popular Genres */}
-      <section className="home-section" style={{padding: '0 24px'}}>
-        <div className="section-header" style={{padding: 0}}>
-          <span className="section-title">🎭 Browse Genres</span>
+      {/* === BROWSE BY GENRE === */}
+      <div style={{ marginBottom: 32 }}>
+        <div className="section-header">
+          <span className="section-title">Browse by Genre</span>
         </div>
         <div className="genre-grid">
-          {[
-            { name: 'Action', gradient: 'linear-gradient(135deg, #ef4444, #ec4899)', icon: '⚔️' },
-            { name: 'Fantasy', gradient: 'linear-gradient(135deg, #8b5cf6, #3b82f6)', icon: '🔮' },
-            { name: 'Adventure', gradient: 'linear-gradient(135deg, #06b6d4, #10b981)', icon: '🗺️' },
-            { name: 'Comedy', gradient: 'linear-gradient(135deg, #f59e0b, #ef4444)', icon: '😂' },
-            { name: 'Sci-Fi', gradient: 'linear-gradient(135deg, #3b82f6, #06b6d4)', icon: '🚀' },
-            { name: 'Romance', gradient: 'linear-gradient(135deg, #ec4899, #f43f5e)', icon: '💖' },
-            { name: 'Mystery', gradient: 'linear-gradient(135deg, #1f2937, #4b5563)', icon: '🕵️' },
-            { name: 'Supernatural', gradient: 'linear-gradient(135deg, #4f46e5, #06b6d4)', icon: '👻' }
-          ].map((genre, i) => (
+          {GENRE_CARDS.map(g => (
             <div
-              key={i}
+              key={g.name}
               className="genre-card"
-              style={{ background: genre.gradient }}
-              onClick={() => navigate('/search', { state: { genre: genre.name } })}
+              style={{ background: g.bg }}
+              onClick={() => navigate('/search', { state: { genre: g.name } })}
             >
-              <span className="genre-card-icon">{genre.icon}</span>
-              <span className="genre-card-name">{genre.name}</span>
+              <span>{g.emoji} {g.name}</span>
             </div>
           ))}
         </div>
-      </section>
-
-      <div style={{height: 60}} />
+      </div>
     </div>
   )
 }
