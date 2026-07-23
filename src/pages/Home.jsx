@@ -516,13 +516,14 @@ export default function Home() {
       <Row
         title="Airing This Season"
         items={airingEpisodes.map(a => ({
-          id: a.mal_id,
-          malId: a.mal_id,
+          ...a,
+          id: a.id || a.mal_id,
+          malId: a.mal_id || a.id,
           title: a.title,
-          cover: a.images?.jpg?.large_image_url || a.images?.jpg?.image_url,
+          cover: a.cover || a.thumbnail || a.image || a.images?.jpg?.large_image_url || a.images?.jpg?.image_url,
           score: a.score,
           type: a.type,
-          episodes: a.episodes,
+          episodes: a.episodes || a.sub_episodes,
         }))}
         loading={airingLoading}
         skeletonCount={10}
